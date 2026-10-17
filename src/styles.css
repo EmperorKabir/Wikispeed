@@ -350,6 +350,10 @@ legend {
   gap: 0.125rem;
 }
 
+.app-main:has(.play) {
+  max-width: 68rem;
+}
+
 .play {
   display: grid;
   gap: 1rem;
