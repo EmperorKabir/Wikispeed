@@ -82,7 +82,7 @@ export function homeView() {
   const root = el(
     'div',
     { class: 'stack' },
-    el('h1', {}, 'Wikispeed'),
+    el('h1', {}, 'Wixpert'),
     el('p', { class: 'lede' }, 'Get from one Wikipedia article to another using only the links.'),
     el(
       'div',

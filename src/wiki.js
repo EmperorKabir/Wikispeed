@@ -2,7 +2,7 @@ const ORIGIN = 'https://en.wikipedia.org'
 const CORE = `${ORIGIN}/w/rest.php/v1`
 const REST = `${ORIGIN}/api/rest_v1`
 
-export const WIKI_UA = 'Wikispeed/0.1 (https://wikispeed-game.web.app; bhasin.kabir@gmail.com)'
+export const WIKI_UA = 'Wixpert/0.1 (https://wikispeed-game.web.app; bhasin.kabir@gmail.com)'
 
 const STYLE_MODULES = [
   'site.styles',

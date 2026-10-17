@@ -1,5 +1,16 @@
 {
   "projects": {
     "default": "wikispeed-game"
-  }
+  },
+  "targets": {
+    "wikispeed-game": {
+      "hosting": {
+        "app": [
+          "wikispeed-game",
+          "wixpert"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

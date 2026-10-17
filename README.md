@@ -1,4 +1,4 @@
-# Wikispeed
+# Wixpert
 
 Race from one Wikipedia article to another. Play solo or in a lobby with friends, against the clock or for the fewest clicks, at the same time or whenever suits.
 

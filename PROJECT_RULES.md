@@ -9,7 +9,7 @@ Initialised with the `android-project-init` skill on 2026-10-17, with one agreed
 - Project-level permissions live in `.claude/settings.json` (`defaultMode: bypassPermissions`). Global and user-level settings are never modified from this project.
 
 ## Target and platform
-- Stack: Vite 8 + vanilla JavaScript (ES modules), Firebase Hosting, Firebase Authentication, Cloud Firestore. Firebase project ID `wikispeed-game`; free hosting address `https://wikispeed-game.web.app`.
+- Stack: Vite 8 + vanilla JavaScript (ES modules), Firebase Hosting, Firebase Authentication, Cloud Firestore. Firebase project ID `wikispeed-game`; the product is named "Wixpert" in the interface. Free hosting addresses: `https://wixpert.web.app` (primary) and `https://wikispeed-game.web.app`; both are deployed together through the hosting target `app`.
 - Wikipedia article content is fetched from Wikipedia's public APIs with a compliant `User-Agent`/`Api-User-Agent` identifying the app and a contact address. Rendering is controlled by the app (no live-site search box), redirects are resolved to canonical titles, and CC BY-SA attribution is shown.
 - Cost ceiling: zero. Stay within the Firebase Spark plan and Wikipedia's unauthenticated rate limits. No paid hosting, domains, or services are introduced without the user's explicit instruction.
 

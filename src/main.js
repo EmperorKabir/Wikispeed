@@ -25,7 +25,7 @@ completeRedirect()
   .then(() => startRouter(outlet))
   .catch((err) => {
     outlet.replaceChildren(
-      el('h1', {}, 'Wikispeed'),
+      el('h1', {}, 'Wixpert'),
       notice(`Could not connect: ${err.message}`, 'error'),
     )
   })
