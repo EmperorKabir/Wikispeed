@@ -60,9 +60,23 @@ body {
   justify-content: space-between;
   gap: 1rem;
   flex-wrap: wrap;
-  padding-block: 0.75rem;
+  padding-block: 0.5rem;
   border-top: 1px solid var(--line);
   color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.app-footer a {
+  color: inherit;
+}
+
+.legal h2 {
+  margin-top: 0.5rem;
+}
+
+.stack-small {
+  display: grid;
+  gap: 0.5rem;
 }
 
 .app-main {

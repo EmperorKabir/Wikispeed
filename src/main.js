@@ -3,6 +3,7 @@ import { route, startRouter } from './router.js'
 import { el, notice } from './ui.js'
 import { historyView } from './views/history.js'
 import { homeView } from './views/home.js'
+import { privacyView, termsView } from './views/legal.js'
 import { multiView } from './views/multi.js'
 import { playView } from './views/play.js'
 import { sessionView } from './views/session.js'
@@ -16,6 +17,8 @@ route('/new/:mode', setupView)
 route('/s/:code', sessionView)
 route('/play/:code', playView)
 route('/history', historyView)
+route('/privacy', privacyView)
+route('/terms', termsView)
 
 let redirectError = null
 
