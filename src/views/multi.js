@@ -9,7 +9,6 @@ export function multiView() {
     type: 'text',
     name: 'code',
     id: 'code',
-    inputmode: 'text',
     autocapitalize: 'characters',
     autocomplete: 'off',
     spellcheck: 'false',

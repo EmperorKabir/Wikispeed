@@ -18,7 +18,6 @@ export function homeView() {
       maxlength: '32',
       autocomplete: 'nickname',
       placeholder: 'Your name',
-      'aria-label': 'Your name',
       value: name,
       onchange: async (event) => {
         try {
@@ -83,7 +82,7 @@ export function homeView() {
     'div',
     { class: 'stack' },
     el('h1', {}, 'Wixpert'),
-    el('p', { class: 'lede' }, 'Get from one Wikipedia article to another using only the links.'),
+    el('p', { class: 'muted' }, 'Get from one Wikipedia article to another using only the links.'),
     el(
       'div',
       { class: 'choices' },

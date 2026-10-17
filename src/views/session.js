@@ -1,10 +1,18 @@
 import { currentUser, displayName, setName } from '../auth.js'
+import { isValidCode, normaliseCode } from '../code.js'
 import { openSession, readRoute, watchRuns, watchSession } from '../db.js'
 import { go } from '../router.js'
 import { SCORING, formatMs, orderRuns } from '../score.js'
 import { button, copyText, el, link, mask, notice, view } from '../ui.js'
 
-export function sessionView({ code }) {
+function notFound() {
+  return view(el('div', { class: 'stack' }, el('p', { class: 'crumbs' }, link('Home', '/')), el('h1', {}, 'No session with that code')))
+}
+
+export function sessionView({ code: raw }) {
+  const code = normaliseCode(raw)
+  if (!isValidCode(code)) return notFound()
+
   const uid = currentUser().uid
   let session
   let runs = []
@@ -30,10 +38,7 @@ export function sessionView({ code }) {
     async (data) => {
       session = data
       if (!session) {
-        root.replaceChildren(
-          el('p', { class: 'crumbs' }, link('Home', '/')),
-          el('h1', {}, 'No session with that code'),
-        )
+        root.replaceChildren(...notFound().el.childNodes)
         return
       }
       if (revealAllowed() && !route) {
@@ -88,13 +93,13 @@ export function sessionView({ code }) {
         'p',
         { class: 'route' },
         mask(session.hideStart, visiblePage('start')),
-        el('span', { class: 'arrow', 'aria-label': 'to' }, '→'),
+        el('span', { class: 'arrow', role: 'img', 'aria-label': 'to' }, '→'),
         mask(session.hideTarget, visiblePage('target')),
       ),
     )
     if (session.mode === 'multi') header.append(codeBlock())
 
-    renderAction()
+    if (!action.contains(document.activeElement)) renderAction()
     renderBoard(scoring)
   }
 
@@ -109,7 +114,7 @@ export function sessionView({ code }) {
         copy.textContent = url
       }
     }, { class: 'secondary' })
-    return el('p', { class: 'row' }, el('span', { class: 'code', 'aria-label': 'Session code' }, code), copy)
+    return el('p', { class: 'row' }, el('span', { class: 'muted small' }, 'Code'), el('span', { class: 'code' }, code), copy)
   }
 
   function renderAction() {
@@ -145,29 +150,35 @@ export function sessionView({ code }) {
 
     const name = displayName()
     const label = run ? (run.quit ? 'Try again' : 'Restart run') : 'Play'
-    const playButton = button(label, () => go(`/play/${code}`), { class: 'primary' })
-
     if (run?.quit) action.append(el('p', { class: 'muted', role: 'status' }, 'You gave up on this one.'))
 
-    if (!name) {
-      const nameInput = el('input', {
-        type: 'text',
-        name: 'nickname',
-        maxlength: '32',
-        placeholder: 'Your name',
-        'aria-label': 'Your name',
-        autocomplete: 'nickname',
-      })
-      playButton.disabled = true
-      nameInput.addEventListener('input', () => {
-        playButton.disabled = nameInput.value.trim().length === 0
-      })
-      playButton.addEventListener('click', () => setName(nameInput.value), { capture: true })
-      action.append(el('div', { class: 'row' }, nameInput, playButton))
+    if (name) {
+      action.append(button(label, () => go(`/play/${code}`), { class: 'primary' }))
       return
     }
 
-    action.append(playButton)
+    const nameInput = el('input', {
+      type: 'text',
+      name: 'nickname',
+      maxlength: '32',
+      placeholder: 'Your name',
+      'aria-label': 'Your name',
+      autocomplete: 'nickname',
+    })
+    const playButton = button(label, async () => {
+      playButton.disabled = true
+      try {
+        await setName(nameInput.value)
+      } catch {
+        playButton.disabled = false
+        return
+      }
+      go(`/play/${code}`)
+    }, { class: 'primary', disabled: true })
+    nameInput.addEventListener('input', () => {
+      playButton.disabled = nameInput.value.trim().length === 0
+    })
+    action.append(el('div', { class: 'row' }, nameInput, playButton))
   }
 
   function renderBoard(scoring) {

@@ -19,9 +19,10 @@ describe('keyFromHref', () => {
     expect(keyFromHref('./AC/DC')).toBe('AC/DC')
     expect(keyFromHref('./Caf%C3%A9')).toBe('Café')
   })
-  it('returns null for non-relative hrefs', () => {
+  it('returns null for non-relative hrefs and edit links', () => {
     expect(keyFromHref('https://example.com')).toBeNull()
     expect(keyFromHref('#Section')).toBeNull()
+    expect(keyFromHref('./Missing?action=edit&redlink=1')).toBeNull()
   })
 })
 
@@ -52,13 +53,14 @@ describe('titleFromKey', () => {
 
 describe('sanitiseArticle', () => {
   const html = [
-    '<!doctype html><html><head><title>United Kingdom</title><link rel="stylesheet" href="x.css">',
+    '<!doctype html><html><head><title>United Kingdom</title><link rel="stylesheet" href="data:text/css,">',
     '<meta charset="utf-8"><script>alert(1)</script></head>',
     '<body><section><h2>Head<span class="mw-editsection">[edit]</span></h2>',
     '<style data-mw-deduplicate="TemplateStyles:r1">.infobox{border:1px solid}</style>',
     '<p>See <a rel="mw:WikiLink" href="./England#History">England</a>, ',
     '<a rel="mw:WikiLink" href="./File:Map.png">map</a>, ',
-    '<a rel="mw:ExtLink" href="https://example.com">site</a> and <a href="#Notes">notes</a>.</p>',
+    '<a rel="mw:ExtLink" href="https://example.com">site</a> and <a href="#Notes">notes</a>, ',
+    '<a rel="mw:WikiLink" href="./Missing?action=edit&amp;redlink=1" class="new">missing</a>.</p>',
     '<figure><img src="//upload.wikimedia.org/a.png" srcset="//upload.wikimedia.org/a2x.png 2x"></figure>',
     '<table class="infobox" style="width:22em"><tr><td>Row</td></tr></table>',
     '<p onclick="x()">Event</p><div class="navbox">nav</div>',
@@ -85,11 +87,9 @@ describe('sanitiseArticle', () => {
     expect(a.getAttribute('href')).toBe('#')
     expect(a.textContent).toBe('England')
   })
-  it('turns file, external and fragment links into plain text', () => {
+  it('turns file, external, fragment and red links into plain text', () => {
     expect(body.querySelectorAll('a')).toHaveLength(1)
-    expect(body.textContent).toContain('map')
-    expect(body.textContent).toContain('site')
-    expect(body.textContent).toContain('notes')
+    for (const text of ['map', 'site', 'notes', 'missing']) expect(body.textContent).toContain(text)
   })
   it('strips inline event handlers and lazy-loads images', () => {
     expect(body.querySelector('[onclick]')).toBeNull()

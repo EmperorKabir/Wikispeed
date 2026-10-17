@@ -3,8 +3,6 @@ export function el(tag, attrs = {}, ...children) {
   for (const [name, value] of Object.entries(attrs)) {
     if (value === null || value === undefined || value === false) continue
     if (name === 'class') node.className = value
-    else if (name === 'text') node.textContent = value
-    else if (name === 'html') node.innerHTML = value
     else if (name.startsWith('on') && typeof value === 'function') node.addEventListener(name.slice(2), value)
     else if (name === 'dataset') Object.assign(node.dataset, value)
     else if (value === true) node.setAttribute(name, '')
@@ -24,10 +22,6 @@ export function link(label, href, attrs = {}) {
 
 export function notice(message, kind = 'info') {
   return el('p', { class: `notice notice-${kind}`, role: kind === 'error' ? 'alert' : 'status' }, message)
-}
-
-export function spinner(label = 'Loading') {
-  return el('p', { class: 'muted', role: 'status' }, label)
 }
 
 export function view(el, dispose) {

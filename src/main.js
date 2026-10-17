@@ -17,12 +17,17 @@ route('/s/:code', sessionView)
 route('/play/:code', playView)
 route('/history', historyView)
 
+let redirectError = null
+
 completeRedirect()
   .catch((err) => {
-    outlet.replaceChildren(notice(`Google sign-in did not complete: ${err.message}`, 'error'))
+    redirectError = err
   })
   .then(ensureSignedIn)
   .then(() => startRouter(outlet))
+  .then(() => {
+    if (redirectError) outlet.prepend(notice(`Google sign-in did not complete: ${redirectError.message}`, 'error'))
+  })
   .catch((err) => {
     outlet.replaceChildren(
       el('h1', {}, 'Wixpert'),

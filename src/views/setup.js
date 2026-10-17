@@ -11,23 +11,13 @@ export function setupView({ mode }) {
     return view(el('div'))
   }
 
-  let scoring = 'time'
   const error = el('div')
 
-  const scoringButtons = Object.entries(SCORING).map(([key, { label }]) =>
+  const scoringChoices = Object.entries(SCORING).map(([key, { label }]) =>
     el(
-      'button',
-      {
-        type: 'button',
-        class: 'choice',
-        role: 'radio',
-        'aria-checked': String(key === scoring),
-        onclick: () => {
-          scoring = key
-          for (const b of scoringButtons) b.setAttribute('aria-checked', String(b.dataset.key === key))
-        },
-        dataset: { key },
-      },
+      'label',
+      { class: 'choice' },
+      el('input', { type: 'radio', name: 'scoring', value: key, checked: key === 'time' }),
       label,
     ),
   )
@@ -57,7 +47,7 @@ export function setupView({ mode }) {
       const code = await createSession({
         uid: currentUser().uid,
         mode,
-        scoring,
+        scoring: root.querySelector('input[name="scoring"]:checked').value,
         start: { key: from.key, title: from.title },
         target: { key: to.key, title: to.title },
         hideStart: start.hidden(),
@@ -75,7 +65,7 @@ export function setupView({ mode }) {
     { class: 'stack' },
     el('p', { class: 'crumbs' }, link('Home', '/'), el('span', {}, mode === 'solo' ? 'Solo' : 'Multiplayer')),
     el('h1', {}, 'New game'),
-    el('fieldset', {}, el('legend', {}, 'Scoring'), el('div', { class: 'choices', role: 'radiogroup' }, scoringButtons)),
+    el('fieldset', {}, el('legend', {}, 'Scoring'), el('div', { class: 'choices' }, scoringChoices)),
     start.el,
     finish.el,
     error,
@@ -89,6 +79,7 @@ function picker(label, name) {
   let page = null
   let debounce = null
   let seq = 0
+  let suggestSeq = 0
   let pending = Promise.resolve()
 
   function track(promise) {
@@ -101,6 +92,7 @@ function picker(label, name) {
     type: 'text',
     name,
     id: `${name}-input`,
+    'aria-label': label,
     autocomplete: 'off',
     list: list.id,
     placeholder: 'Type a title',
@@ -116,12 +108,13 @@ function picker(label, name) {
     status.textContent = ''
     clearTimeout(debounce)
     const q = input.value
+    const mine = ++suggestSeq
     debounce = setTimeout(async () => {
       try {
         const pages = await suggestTitles(q)
-        list.replaceChildren(...pages.map((p) => el('option', { value: p.title }, p.description)))
+        if (mine === suggestSeq) list.replaceChildren(...pages.map((p) => el('option', { value: p.title }, p.description)))
       } catch {
-        list.replaceChildren()
+        if (mine === suggestSeq) list.replaceChildren()
       }
     }, 250)
   }
@@ -185,7 +178,7 @@ function picker(label, name) {
 
   const root = el(
     'fieldset',
-    { class: 'picker' },
+    {},
     el('legend', {}, label),
     el('div', { class: 'row' }, input, randomButton, list),
     status,

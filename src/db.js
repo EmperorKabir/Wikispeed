@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore'
 import { makeCode } from './code.js'
 import { db } from './firebase.js'
@@ -77,11 +78,6 @@ export async function readRoute(code) {
   return snap.exists() ? snap.data() : null
 }
 
-export async function getRun(code, uid) {
-  const snap = await getDoc(runRef(code, uid))
-  return snap.exists() ? { id: uid, ...snap.data() } : null
-}
-
 export async function startRun(code, uid, name, startKey) {
   await setDoc(runRef(code, uid), {
     name,
@@ -95,20 +91,15 @@ export async function startRun(code, uid, name, startKey) {
   })
 }
 
-export async function finishRun(code, uid, { name, clicks, ms, path, done }) {
-  await setDoc(runRef(code, uid), {
-    name,
-    clicks,
-    ms,
-    path: path.slice(0, 500),
-    done,
-    quit: !done,
-    finishedAt: serverTimestamp(),
-  }, { merge: true })
-}
-
-export async function saveHistory(uid, code, entry) {
-  await setDoc(doc(historyRef(uid), code), { ...entry, at: serverTimestamp() })
+export async function recordRun(code, uid, { name, clicks, ms, path, done }, history) {
+  const batch = writeBatch(db)
+  batch.set(
+    runRef(code, uid),
+    { name, clicks, ms, path: path.slice(0, 500), done, quit: !done, finishedAt: serverTimestamp() },
+    { merge: true },
+  )
+  batch.set(doc(historyRef(uid), code), { ...history, at: serverTimestamp() })
+  await batch.commit()
 }
 
 export function watchHistory(uid, onChange, onError) {

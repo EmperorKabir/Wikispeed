@@ -1,5 +1,5 @@
 import { currentUser, displayName } from '../auth.js'
-import { finishRun, getSession, readRoute, saveHistory, startRun } from '../db.js'
+import { getSession, readRoute, recordRun, startRun } from '../db.js'
 import { go } from '../router.js'
 import { formatMs } from '../score.js'
 import { createTimer } from '../timer.js'
@@ -9,15 +9,9 @@ import { articleUrl, fetchArticle, loadWikiStyles } from '../wiki.js'
 export async function playView({ code }) {
   const user = currentUser()
   const name = displayName(user)
-  const session = await getSession(code)
+  const [session, route] = await Promise.all([getSession(code), readRoute(code).catch(() => null)])
 
-  if (!session || session.status !== 'open' || !name) {
-    go(`/s/${code}`)
-    return view(el('div'))
-  }
-
-  const route = await readRoute(code)
-  if (!route) {
+  if (!session || session.status !== 'open' || !name || !route) {
     go(`/s/${code}`)
     return view(el('div'))
   }
@@ -88,14 +82,20 @@ export async function playView({ code }) {
       titleOut.textContent = page.title
       wikiLink.setAttribute('href', articleUrl(page.key))
       content.replaceChildren(...page.body.childNodes)
-      article.setAttribute('aria-busy', 'false')
       status.replaceChildren()
       scrollTo(0, 0)
       if (page.key === route.target.key) {
+        article.setAttribute('aria-busy', 'false')
         await finish()
         return
       }
-      timer.resume()
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (finished) return
+          article.setAttribute('aria-busy', 'false')
+          timer.resume()
+        }),
+      )
     } catch (err) {
       status.replaceChildren(
         notice(err.message, 'error'),
@@ -121,18 +121,22 @@ export async function playView({ code }) {
     return timed ? formatMs(Math.round(timer.elapsed())) : `${clicks} ${clicks === 1 ? 'click' : 'clicks'}`
   }
 
-  async function record(done) {
+  function record(done) {
     const ms = Math.round(timer.elapsed())
-    await finishRun(code, user.uid, { name, clicks, ms, path, done })
-    await saveHistory(user.uid, code, {
-      mode: session.mode,
-      scoring: session.scoring,
-      start: route.start.title,
-      target: route.target.title,
-      clicks,
-      ms,
-      done,
-    })
+    return recordRun(
+      code,
+      user.uid,
+      { name, clicks, ms, path, done },
+      {
+        mode: session.mode,
+        scoring: session.scoring,
+        start: route.start.title,
+        target: route.target.title,
+        clicks,
+        ms,
+        done,
+      },
+    )
   }
 
   async function finish() {

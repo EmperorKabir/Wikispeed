@@ -103,8 +103,8 @@ a {
   flex-wrap: wrap;
 }
 
-.lede {
-  color: var(--muted);
+h1:focus {
+  outline: none;
 }
 
 .muted {
@@ -223,6 +223,7 @@ legend {
 }
 
 .choice {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -238,9 +239,29 @@ legend {
   cursor: pointer;
 }
 
-.choice[aria-checked="true"],
-.choice:hover {
+.choice input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+
+.choice:has(:checked) {
   border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.choice:has(:focus-visible) {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .choice:hover {
+    border-color: var(--accent);
+  }
 }
 
 .join {
@@ -495,15 +516,10 @@ legend {
 
 @media (vertical-viewport-segments: 2) {
   .app {
-    grid-template-rows: auto env(viewport-segment-height 0 0) auto;
+    grid-template-rows: env(viewport-segment-height 0 0) auto;
   }
-}
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation: none !important;
-    transition: none !important;
+  .app-main {
+    overflow-y: auto;
   }
 }

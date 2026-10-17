@@ -36,11 +36,27 @@ service cloud.firestore {
         && d.clicks is int && d.clicks >= 0
         && d.ms is number && d.ms >= 0
         && d.path is list && d.path.size() <= 500
-        && d.done is bool;
+        && d.done is bool
+        && d.quit is bool
+        && (d.startedAt == null || d.startedAt is timestamp)
+        && (d.finishedAt == null || d.finishedAt is timestamp);
+    }
+
+    function validHistory(d) {
+      return d.keys().hasOnly(['mode', 'scoring', 'start', 'target', 'clicks', 'ms', 'done', 'at'])
+        && d.mode in ['solo', 'multi']
+        && d.scoring in ['time', 'clicks']
+        && d.start is string && d.start.size() <= 300
+        && d.target is string && d.target.size() <= 300
+        && d.clicks is int && d.clicks >= 0
+        && d.ms is number && d.ms >= 0
+        && d.done is bool
+        && d.at == request.time;
     }
 
     match /sessions/{code} {
-      allow read: if signedIn();
+      allow get: if signedIn();
+      allow list: if false;
       allow create: if signedIn()
         && code.matches('^[A-HJ-NP-Z2-9]{6}$')
         && validSession(request.resource.data);
@@ -53,8 +69,9 @@ service cloud.firestore {
       allow delete: if false;
 
       match /private/route {
-        allow read: if signedIn()
+        allow get: if signedIn()
           && (sessionDoc(code).host == request.auth.uid || sessionDoc(code).status == 'open');
+        allow list: if false;
         allow create: if signedIn()
           && request.resource.data.keys().hasOnly(['start', 'target'])
           && validPage(request.resource.data.start)
@@ -79,7 +96,9 @@ service cloud.firestore {
     }
 
     match /users/{uid}/history/{code} {
-      allow read, write: if signedIn() && request.auth.uid == uid;
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn() && request.auth.uid == uid && validHistory(request.resource.data);
+      allow delete: if false;
     }
 
     match /{document=**} {

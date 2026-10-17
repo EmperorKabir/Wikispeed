@@ -2,17 +2,18 @@ const ORIGIN = 'https://en.wikipedia.org'
 const CORE = `${ORIGIN}/w/rest.php/v1`
 const REST = `${ORIGIN}/api/rest_v1`
 
-export const WIKI_UA = 'Wixpert/0.1 (https://wikispeed-game.web.app; bhasin.kabir@gmail.com)'
+export const WIKI_UA = 'Wixpert/0.1 (https://wixpert.web.app; bhasin.kabir@gmail.com)'
 
 const STYLE_MODULES = [
   'site.styles',
   'ext.cite.styles',
+  'ext.cite.parsoid.styles',
   'mediawiki.skinning.content.parsoid',
   'ext.math.styles',
   'mediawiki.page.gallery.styles',
 ]
 
-export const WIKI_STYLES_URL = `${ORIGIN}/w/load.php?lang=en&modules=${encodeURIComponent(STYLE_MODULES.join('|'))}&only=styles&skin=vector`
+const WIKI_STYLES_URL = `${ORIGIN}/w/load.php?lang=en&modules=${encodeURIComponent(STYLE_MODULES.join('|'))}&only=styles&skin=vector`
 
 const BLOCKED_NAMESPACES = [
   'file', 'image', 'media', 'category', 'help', 'wikipedia', 'wp', 'project', 'template', 'special',
@@ -34,9 +35,9 @@ export function keyFromUrl(url) {
 
 export function keyFromHref(href) {
   if (typeof href !== 'string' || !href.startsWith('./')) return null
-  const withoutFragment = href.slice(2).split('#')[0]
-  if (!withoutFragment) return null
-  return safeDecode(withoutFragment)
+  const path = href.slice(2).split('#')[0]
+  if (!path || path.includes('?')) return null
+  return safeDecode(path)
 }
 
 export function isArticleKey(key) {
@@ -65,17 +66,18 @@ export function sanitiseArticle(html) {
   for (const node of body.querySelectorAll(STRIP_SELECTOR)) node.remove()
 
   for (const node of body.querySelectorAll('*')) {
-    for (const attr of [...node.attributes]) {
-      const name = attr.name.toLowerCase()
-      if (name.startsWith('on') || name === 'tabindex' || name === 'contenteditable') {
-        node.removeAttribute(attr.name)
-      }
+    for (const name of node.getAttributeNames()) {
+      if (name.startsWith('on') || name === 'tabindex' || name === 'contenteditable') node.removeAttribute(name)
+    }
+    if (node.localName === 'img') {
+      node.setAttribute('loading', 'lazy')
+      node.setAttribute('decoding', 'async')
     }
   }
 
   for (const anchor of body.querySelectorAll('a')) {
     const key = keyFromHref(anchor.getAttribute('href'))
-    if (key && isArticleKey(key)) {
+    if (key && isArticleKey(key) && !anchor.classList.contains('new')) {
       anchor.setAttribute('href', '#')
       anchor.setAttribute('data-key', key)
       anchor.removeAttribute('target')
@@ -86,11 +88,6 @@ export function sanitiseArticle(html) {
       span.append(...anchor.childNodes)
       anchor.replaceWith(span)
     }
-  }
-
-  for (const img of body.querySelectorAll('img')) {
-    img.setAttribute('loading', 'lazy')
-    img.setAttribute('decoding', 'async')
   }
 
   return { title, body }
@@ -177,5 +174,8 @@ export function loadWikiStyles() {
     link.href = WIKI_STYLES_URL
     document.head.append(link)
   }
-  return () => link.remove()
+  link.disabled = false
+  return () => {
+    link.disabled = true
+  }
 }

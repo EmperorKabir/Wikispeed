@@ -1,3 +1,5 @@
+import { el, notice } from './ui.js'
+
 const routes = []
 let current = null
 let outlet = null
@@ -16,7 +18,7 @@ export function go(path) {
   location.hash = `#${path}`
 }
 
-export function currentPath() {
+function currentPath() {
   const hash = location.hash.replace(/^#/, '')
   return hash || '/'
 }
@@ -24,7 +26,7 @@ export function currentPath() {
 export function startRouter(element) {
   outlet = element
   addEventListener('hashchange', render)
-  render()
+  return render()
 }
 
 async function render() {
@@ -36,7 +38,15 @@ async function render() {
   for (const { regex, names, handler } of routes) {
     const match = regex.exec(path)
     if (!match) continue
-    const params = Object.fromEntries(names.map((name, i) => [name, decodeURIComponent(match[i + 1])]))
+    const params = Object.fromEntries(
+      names.map((name, i) => {
+        try {
+          return [name, decodeURIComponent(match[i + 1])]
+        } catch {
+          return [name, match[i + 1]]
+        }
+      }),
+    )
     let view
     try {
       view = await handler(params)
@@ -52,23 +62,22 @@ async function render() {
     current = view
     outlet.replaceChildren(view.el)
     scrollTo(0, 0)
+    const heading = view.el.querySelector('h1')
+    if (heading) {
+      heading.tabIndex = -1
+      heading.focus({ preventScroll: true })
+    }
     return
   }
   go('/')
 }
 
 function errorView(error) {
-  const wrap = document.createElement('div')
-  wrap.className = 'stack'
-  const heading = document.createElement('h1')
-  heading.textContent = 'Something went wrong'
-  const message = document.createElement('p')
-  message.className = 'notice notice-error'
-  message.setAttribute('role', 'alert')
-  message.textContent = error?.message ?? String(error)
-  const home = document.createElement('a')
-  home.href = '#/'
-  home.textContent = 'Home'
-  wrap.append(heading, message, home)
-  return wrap
+  return el(
+    'div',
+    { class: 'stack' },
+    el('h1', {}, 'Something went wrong'),
+    notice(error?.message ?? String(error), 'error'),
+    el('a', { href: '#/' }, 'Home'),
+  )
 }
