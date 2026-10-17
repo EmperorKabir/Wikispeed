@@ -77,7 +77,7 @@ export function sessionView({ code: raw }) {
   function visiblePage(which) {
     const hidden = which === 'start' ? session.hideStart : session.hideTarget
     if (!hidden) return session[which]
-    const started = session.mode === 'multi' ? session.status === 'open' : myAttempts().length > 0
+    const started = session.status === 'open' && myAttempts().length > 0
     return started && route ? route[which] : null
   }
 

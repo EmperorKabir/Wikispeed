@@ -2,7 +2,7 @@ const ORIGIN = 'https://en.wikipedia.org'
 const CORE = `${ORIGIN}/w/rest.php/v1`
 const REST = `${ORIGIN}/api/rest_v1`
 
-export const WIKI_UA = 'Wixpert/0.1 (https://wixpert.web.app; bhasin.kabir@gmail.com)'
+const WIKI_UA ='Wixpert/0.1 (https://wixpert.web.app; bhasin.kabir@gmail.com)'
 
 const STYLE_MODULES = [
   'site.styles',
@@ -54,7 +54,7 @@ export function titleFromKey(key) {
   return String(key).replace(/_/g, ' ')
 }
 
-export function keyFromTitle(title) {
+function keyFromTitle(title) {
   return String(title).trim().replace(/\s+/g, '_')
 }
 

@@ -1,5 +1,5 @@
 export const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-export const CODE_LENGTH = 6
+const CODE_LENGTH = 6
 
 function secureRandom() {
   const buffer = new Uint32Array(1)

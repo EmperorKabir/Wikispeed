@@ -33,7 +33,7 @@ export function copyText(text) {
   return Promise.reject(new Error('Clipboard unavailable'))
 }
 
-export function mask(hidden, page, placeholder = 'Hidden until start') {
+export function mask(hidden, page, placeholder = 'Hidden until you play') {
   if (hidden && !page) return el('span', { class: 'masked' }, placeholder)
   return el('span', {}, page?.title ?? '')
 }

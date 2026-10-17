@@ -65,3 +65,13 @@ Six characters from `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` (no 0/O/1/I). Created in 
 
 ## Out of scope (explicitly, by the user)
 Nothing the user listed is excluded. Not built because not requested: other-language Wikipedias, team play, chat, password-protected sessions, score deletion.
+
+## Changes since first implementation (17 October 2026)
+- Product name is Wixpert; hosted at wixpert.web.app and wikispeed-game.web.app. Sign-in uses whichever address serves the page.
+- Join-by-code lives on the Multiplayer page, not Home.
+- Every attempt is stored as its own run document (`runs/{uid}-{n}`) with `uid` and `attempt` fields. Players may retry without limit. The leaderboard ranks each player's best finished attempt and lists all attempts with routes; routes are visible in multiplayer only once the viewer has attempted. History stores the best result and the attempt count.
+- Rules verify results: reported time cannot exceed server-measured elapsed time, clicks must equal route length minus one, attempts start at zero and can be closed once.
+- Hidden articles are revealed on the session page only after the viewing player has started an attempt.
+- Give up is recorded (`quit`) and listed as "gave up"; abandoned attempts show as "unfinished".
+- Template styles inside articles are kept so pages look like Wikipedia; Wikipedia's own stylesheet modules are loaded on the play page. Red links and edit links are inert.
+- Privacy and Terms pages exist at `#/privacy` and `#/terms`.

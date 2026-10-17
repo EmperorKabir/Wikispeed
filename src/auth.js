@@ -132,7 +132,7 @@ export function nickname() {
   }
 }
 
-export function setNickname(name) {
+function setNickname(name) {
   const trimmed = String(name ?? '').trim().slice(0, NAME_LIMIT)
   try {
     if (trimmed) localStorage.setItem(NICKNAME_KEY, trimmed)
