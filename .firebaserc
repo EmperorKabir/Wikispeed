@@ -4,12 +4,7 @@
   },
   "targets": {
     "wikispeed-game": {
-      "hosting": {
-        "app": [
-          "wikispeed-game",
-          "wixpert"
-        ]
-      }
+      "hosting": {}
     }
   },
   "etags": {}
