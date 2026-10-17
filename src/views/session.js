@@ -1,4 +1,4 @@
-import { currentUser, displayName, setNickname } from '../auth.js'
+import { currentUser, displayName, setName } from '../auth.js'
 import { openSession, readRoute, watchRuns, watchSession } from '../db.js'
 import { go } from '../router.js'
 import { SCORING, formatMs, orderRuns } from '../score.js'
@@ -63,13 +63,19 @@ export function sessionView({ code }) {
     return session.status === 'open'
   }
 
+  function myRun() {
+    return runs.find((r) => r.id === uid)
+  }
+
   function visiblePage(which) {
     const hidden = which === 'start' ? session.hideStart : session.hideTarget
-    const pub = session[which]
-    if (!hidden) return pub
-    const myRun = runs.find((r) => r.id === uid)
-    const started = session.mode === 'multi' ? session.status === 'open' : Boolean(myRun)
+    if (!hidden) return session[which]
+    const started = session.mode === 'multi' ? session.status === 'open' : Boolean(myRun())
     return started && route ? route[which] : null
+  }
+
+  function metric(run) {
+    return session.scoring === 'time' ? formatMs(run.ms) : String(run.clicks)
   }
 
   function render() {
@@ -108,7 +114,7 @@ export function sessionView({ code }) {
 
   function renderAction() {
     action.replaceChildren()
-    const myRun = runs.find((r) => r.id === uid)
+    const run = myRun()
 
     if (session.status === 'lobby') {
       if (session.host === uid) {
@@ -131,15 +137,17 @@ export function sessionView({ code }) {
       return
     }
 
-    if (myRun?.done) {
-      action.append(
-        el('p', { role: 'status' }, `You finished in ${myRun.clicks} ${myRun.clicks === 1 ? 'click' : 'clicks'}, ${formatMs(myRun.ms)}.`),
-      )
+    if (run?.done) {
+      const label = session.scoring === 'time' ? formatMs(run.ms) : `${run.clicks} ${run.clicks === 1 ? 'click' : 'clicks'}`
+      action.append(el('p', { role: 'status' }, `You finished: ${label}.`))
       return
     }
 
     const name = displayName()
-    const playButton = button(myRun ? 'Restart run' : 'Play', () => go(`/play/${code}`), { class: 'primary' })
+    const label = run ? (run.quit ? 'Try again' : 'Restart run') : 'Play'
+    const playButton = button(label, () => go(`/play/${code}`), { class: 'primary' })
+
+    if (run?.quit) action.append(el('p', { class: 'muted', role: 'status' }, 'You gave up on this one.'))
 
     if (!name) {
       const nameInput = el('input', {
@@ -154,7 +162,7 @@ export function sessionView({ code }) {
       nameInput.addEventListener('input', () => {
         playButton.disabled = nameInput.value.trim().length === 0
       })
-      playButton.addEventListener('click', () => setNickname(nameInput.value), { capture: true })
+      playButton.addEventListener('click', () => setName(nameInput.value), { capture: true })
       action.append(el('div', { class: 'row' }, nameInput, playButton))
       return
     }
@@ -165,7 +173,7 @@ export function sessionView({ code }) {
   function renderBoard(scoring) {
     board.replaceChildren()
     if (runs.length === 0) {
-      board.append(el('p', { class: 'muted' }, session.status === 'lobby' ? '' : 'No runs yet.'))
+      if (session.status !== 'lobby') board.append(el('p', { class: 'muted' }, 'No runs yet.'))
       return
     }
     const rows = orderRuns(runs, session.scoring).map((run, i) =>
@@ -174,8 +182,7 @@ export function sessionView({ code }) {
         { class: run.id === uid ? 'me' : null },
         el('td', {}, run.done ? String(i + 1) : ''),
         el('td', {}, run.name),
-        el('td', { class: 'num' }, run.done ? String(run.clicks) : '…'),
-        el('td', { class: 'num' }, run.done ? formatMs(run.ms) : 'playing'),
+        el('td', { class: 'num' }, run.done ? metric(run) : run.quit ? 'gave up' : 'playing'),
       ),
     )
     board.append(
@@ -186,11 +193,10 @@ export function sessionView({ code }) {
         el(
           'table',
           { class: 'board' },
-          el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, 'Player'), el('th', { class: 'num' }, 'Clicks'), el('th', { class: 'num' }, 'Time'))),
+          el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, 'Player'), el('th', { class: 'num' }, scoring.metric))),
           el('tbody', {}, rows),
         ),
       ),
-      el('p', { class: 'muted small' }, `Ranked by ${scoring.metric.toLowerCase()}.`),
     )
   }
 

@@ -3,6 +3,8 @@ import { watchHistory } from '../db.js'
 import { SCORING, formatMs } from '../score.js'
 import { el, link, notice, view } from '../ui.js'
 
+const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+
 export function historyView() {
   const user = currentUser()
   const list = el('div', {}, el('p', { class: 'muted', role: 'status' }, 'Loading'))
@@ -24,27 +26,27 @@ export function historyView() {
         list.append(el('p', { class: 'muted' }, 'Nothing played yet.'))
         return
       }
-      list.append(
-        el(
-          'ul',
-          { class: 'history' },
-          entries.map((e) =>
-            el(
-              'li',
-              {},
-              link(`${e.start} → ${e.target}`, `/s/${e.code}`),
-              el(
-                'span',
-                { class: 'muted small' },
-                `${e.mode === 'solo' ? 'Solo' : 'Multiplayer'} · ${SCORING[e.scoring]?.label ?? ''} · ${e.clicks} ${e.clicks === 1 ? 'click' : 'clicks'} · ${formatMs(e.ms)}`,
-              ),
-            ),
-          ),
-        ),
-      )
+      list.append(el('ul', { class: 'history' }, entries.map(row)))
     },
     () => list.replaceChildren(notice('Could not load history.', 'error')),
   )
+
+  function row(e) {
+    const timed = e.scoring === 'time'
+    const when = e.at?.toDate ? dateFormat.format(e.at.toDate()) : ''
+    const result = timed ? formatMs(e.ms ?? 0) : `${e.clicks ?? 0} ${e.clicks === 1 ? 'click' : 'clicks'}`
+    return el(
+      'li',
+      {},
+      el('div', { class: 'row between' }, link(`${e.start} → ${e.target}`, `/s/${e.code}`), el('span', { class: 'muted small' }, when)),
+      el(
+        'div',
+        { class: 'row' },
+        el('span', { class: `outcome ${e.done ? 'ok' : 'quit'}` }, e.done ? `Finished: ${result}` : 'Gave up'),
+        el('span', { class: 'muted small' }, `${e.mode === 'solo' ? 'Solo' : 'Multiplayer'} · ${SCORING[e.scoring]?.label ?? ''}`),
+      ),
+    )
+  }
 
   return view(root, stop)
 }

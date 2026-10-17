@@ -4,7 +4,7 @@ import { go } from '../router.js'
 import { formatMs } from '../score.js'
 import { createTimer } from '../timer.js'
 import { button, el, link, notice, view } from '../ui.js'
-import { articleUrl, fetchArticle } from '../wiki.js'
+import { articleUrl, fetchArticle, loadWikiStyles } from '../wiki.js'
 
 export async function playView({ code }) {
   const user = currentUser()
@@ -22,16 +22,19 @@ export async function playView({ code }) {
     return view(el('div'))
   }
 
+  const timed = session.scoring === 'time'
   const timer = createTimer()
   const path = [route.start.key]
   let clicks = 0
   let finished = false
+  let currentKey = route.start.key
   let tick = null
 
-  const clicksOut = el('span', { class: 'stat' }, '0')
-  const timeOut = el('span', { class: 'stat' }, '0:00.0')
-  const heading = el('h1', { class: 'article-title' })
-  const article = el('article', { class: 'article', 'aria-busy': 'true', onclick: onArticleClick })
+  const metricOut = el('span', { class: 'stat' }, timed ? '0:00.0' : '0')
+  const titleOut = el('span', { class: 'article-title' })
+  const wikiLink = el('a', { class: 'small', target: '_blank', rel: 'noopener' }, 'Open on Wikipedia')
+  const content = el('div', { class: 'mw-parser-output' })
+  const article = el('article', { class: 'wiki-paper', 'aria-busy': 'true', onclick: onArticleClick }, content)
   const status = el('div')
 
   const bar = el(
@@ -41,20 +44,30 @@ export async function playView({ code }) {
     el(
       'div',
       { class: 'stats' },
-      el('span', { class: session.scoring === 'clicks' ? 'primary-stat' : null }, el('span', { class: 'muted small' }, 'Clicks '), clicksOut),
-      el('span', { class: session.scoring === 'time' ? 'primary-stat' : null }, el('span', { class: 'muted small' }, 'Time '), timeOut),
-      button('Give up', () => go(`/s/${code}`), { class: 'text' }),
+      el('span', { class: 'primary-stat' }, el('span', { class: 'muted small' }, timed ? 'Time ' : 'Clicks '), metricOut),
+      button('Give up', giveUp, { class: 'text' }),
     ),
   )
 
-  const root = el('div', { class: 'play' }, bar, status, heading, article)
+  const root = el(
+    'div',
+    { class: 'play' },
+    bar,
+    status,
+    el('div', { class: 'article-head' }, titleOut, wikiLink),
+    article,
+  )
+
+  const unloadStyles = loadWikiStyles()
 
   await startRun(code, user.uid, name, route.start.key)
   timer.start()
   timer.pause()
-  tick = setInterval(() => {
-    timeOut.textContent = formatMs(timer.elapsed())
-  }, 100)
+  if (timed) {
+    tick = setInterval(() => {
+      metricOut.textContent = formatMs(timer.elapsed())
+    }, 100)
+  }
 
   load(route.start.key)
 
@@ -65,9 +78,11 @@ export async function playView({ code }) {
     try {
       const page = await fetchArticle(key)
       if (finished) return
+      currentKey = page.key
       path[path.length - 1] = page.key
-      heading.textContent = page.title
-      article.replaceChildren(...page.body.childNodes)
+      titleOut.textContent = page.title
+      wikiLink.setAttribute('href', articleUrl(page.key))
+      content.replaceChildren(...page.body.childNodes)
       article.setAttribute('aria-busy', 'false')
       status.replaceChildren()
       scrollTo(0, 0)
@@ -90,33 +105,42 @@ export async function playView({ code }) {
     event.preventDefault()
     if (article.getAttribute('aria-busy') === 'true') return
     const key = anchor.dataset.key
+    if (key === currentKey) return
     clicks += 1
-    clicksOut.textContent = String(clicks)
+    if (!timed) metricOut.textContent = String(clicks)
     path.push(key)
     load(key)
+  }
+
+  function result() {
+    return timed ? formatMs(Math.round(timer.elapsed())) : `${clicks} ${clicks === 1 ? 'click' : 'clicks'}`
+  }
+
+  async function record(done) {
+    const ms = Math.round(timer.elapsed())
+    await finishRun(code, user.uid, { name, clicks, ms, path, done })
+    await saveHistory(user.uid, code, {
+      mode: session.mode,
+      scoring: session.scoring,
+      start: route.start.title,
+      target: route.target.title,
+      clicks,
+      ms,
+      done,
+    })
   }
 
   async function finish() {
     finished = true
     timer.pause()
     clearInterval(tick)
-    const ms = Math.round(timer.elapsed())
-    timeOut.textContent = formatMs(ms)
+    metricOut.textContent = timed ? formatMs(Math.round(timer.elapsed())) : String(clicks)
     status.replaceChildren(el('p', { class: 'muted', role: 'status' }, 'Saving'))
     try {
-      await finishRun(code, user.uid, { name, clicks, ms, path })
-      await saveHistory(user.uid, code, {
-        mode: session.mode,
-        scoring: session.scoring,
-        start: route.start.title,
-        target: route.target.title,
-        clicks,
-        ms,
-        done: true,
-      })
+      await record(true)
       status.replaceChildren(
-        el('p', { class: 'done', role: 'status' }, `Done in ${clicks} ${clicks === 1 ? 'click' : 'clicks'}, ${formatMs(ms)}.`),
-        el('p', { class: 'row' }, link('See results', `/s/${code}`, { class: 'button primary' }), el('a', { href: articleUrl(route.target.key), target: '_blank', rel: 'noopener', class: 'small' }, 'Open on Wikipedia')),
+        el('p', { class: 'done', role: 'status' }, `Done: ${result()}.`),
+        el('p', { class: 'row' }, link('See results', `/s/${code}`, { class: 'button primary' })),
       )
     } catch (err) {
       status.replaceChildren(
@@ -126,8 +150,23 @@ export async function playView({ code }) {
     }
   }
 
+  async function giveUp() {
+    if (finished) return
+    finished = true
+    timer.pause()
+    clearInterval(tick)
+    status.replaceChildren(el('p', { class: 'muted', role: 'status' }, 'Saving'))
+    try {
+      await record(false)
+    } catch {
+      // the run stays marked as in progress; nothing else to do here
+    }
+    go(`/s/${code}`)
+  }
+
   return view(root, () => {
     finished = true
     clearInterval(tick)
+    unloadStyles()
   })
 }

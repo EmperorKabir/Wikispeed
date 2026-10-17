@@ -3,7 +3,7 @@ import { createSession } from '../db.js'
 import { go } from '../router.js'
 import { SCORING } from '../score.js'
 import { button, el, link, notice, view } from '../ui.js'
-import { randomArticle, resolveTitle, suggestTitles } from '../wiki.js'
+import { articleUrl, randomArticle, resolveTitle, suggestTitles } from '../wiki.js'
 
 export function setupView({ mode }) {
   if (mode !== 'solo' && mode !== 'multi') {
@@ -99,7 +99,7 @@ function picker(label, name) {
     onchange: () => resolve(input.value),
   })
   const status = el('p', { class: 'muted small', 'aria-live': 'polite' })
-  const hide = el('input', { type: 'checkbox', name: `${name}-hide` })
+  const hide = el('input', { type: 'checkbox', name: `${name}-hide`, onchange: refresh })
   const randomButton = button('Random', onRandom, { class: 'secondary' })
 
   function onInput() {
@@ -131,7 +131,8 @@ function picker(label, name) {
         page = null
         status.textContent = 'Pick a specific article, not a disambiguation page'
       } else {
-        set(found)
+        page = found
+        refresh()
       }
     } catch (err) {
       if (mine === seq) status.textContent = err.message
@@ -145,8 +146,8 @@ function picker(label, name) {
     try {
       const found = await randomArticle()
       if (mine !== seq) return
-      input.value = found.title
-      set(found)
+      page = found
+      refresh()
     } catch (err) {
       if (mine === seq) status.textContent = err.message
     } finally {
@@ -154,9 +155,23 @@ function picker(label, name) {
     }
   }
 
-  function set(found) {
-    page = found
-    status.textContent = found.description ? `${found.title}: ${found.description}` : found.title
+  function refresh() {
+    if (!page) {
+      status.replaceChildren()
+      return
+    }
+    if (hide.checked) {
+      input.value = ''
+      input.placeholder = 'Hidden'
+      status.replaceChildren(el('span', {}, 'Article chosen and hidden.'))
+      return
+    }
+    input.placeholder = 'Type a title'
+    input.value = page.title
+    status.replaceChildren(
+      el('span', {}, page.description ? `${page.title}: ${page.description} ` : `${page.title} `),
+      el('a', { href: articleUrl(page.key), target: '_blank', rel: 'noopener' }, 'View on Wikipedia'),
+    )
   }
 
   const root = el(

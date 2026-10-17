@@ -89,18 +89,20 @@ export async function startRun(code, uid, name, startKey) {
     ms: 0,
     path: [startKey],
     done: false,
+    quit: false,
     startedAt: serverTimestamp(),
     finishedAt: null,
   })
 }
 
-export async function finishRun(code, uid, { name, clicks, ms, path }) {
+export async function finishRun(code, uid, { name, clicks, ms, path, done }) {
   await setDoc(runRef(code, uid), {
     name,
     clicks,
     ms,
     path: path.slice(0, 500),
-    done: true,
+    done,
+    quit: !done,
     finishedAt: serverTimestamp(),
   }, { merge: true })
 }
@@ -110,7 +112,7 @@ export async function saveHistory(uid, code, entry) {
 }
 
 export function watchHistory(uid, onChange, onError) {
-  const q = query(historyRef(uid), orderBy('at', 'desc'), limit(100))
+  const q = query(historyRef(uid), orderBy('at', 'desc'), limit(300))
   return onSnapshot(
     q,
     (snap) => onChange(snap.docs.map((d) => ({ code: d.id, ...d.data() }))),

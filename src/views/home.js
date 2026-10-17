@@ -1,71 +1,51 @@
-import { currentUser, displayName, isGoogleUser, onUser, setNickname, signInWithGoogle, signOutUser } from '../auth.js'
-import { isValidCode, normaliseCode } from '../code.js'
-import { go } from '../router.js'
+import { currentUser, displayName, isGoogleUser, onUser, setName, signInWithGoogle, signOutUser } from '../auth.js'
 import { button, el, link, notice, view } from '../ui.js'
 
 export function homeView() {
   const account = el('section', { class: 'account' })
   const error = el('div')
 
-  const codeInput = el('input', {
-    type: 'text',
-    name: 'code',
-    inputmode: 'text',
-    autocapitalize: 'characters',
-    autocomplete: 'off',
-    spellcheck: 'false',
-    maxlength: '8',
-    placeholder: 'Session code',
-    'aria-label': 'Session code',
-  })
-
-  const joinForm = el(
-    'form',
-    {
-      class: 'join',
-      onsubmit: (event) => {
-        event.preventDefault()
-        const code = normaliseCode(codeInput.value)
-        if (!isValidCode(code)) {
-          error.replaceChildren(notice('Codes are six letters or numbers.', 'error'))
-          return
-        }
-        go(`/s/${code}`)
-      },
-    },
-    codeInput,
-    el('button', { type: 'submit', class: 'secondary' }, 'Join'),
-  )
-
   function renderAccount() {
     const user = currentUser()
     const name = displayName(user)
+    const google = isGoogleUser(user)
     account.replaceChildren()
-
-    if (isGoogleUser(user)) {
-      account.append(
-        el('p', {}, el('span', { class: 'muted' }, 'Signed in as '), el('strong', {}, name)),
-        el('p', { class: 'row' }, link('History', '/history'), button('Sign out', onSignOut, { class: 'text' })),
-      )
-      return
-    }
 
     const nameInput = el('input', {
       type: 'text',
       name: 'nickname',
+      id: 'nickname',
       maxlength: '32',
       autocomplete: 'nickname',
       placeholder: 'Your name',
       'aria-label': 'Your name',
       value: name,
-      onchange: (event) => {
-        setNickname(event.target.value)
+      onchange: async (event) => {
+        try {
+          await setName(event.target.value)
+        } catch {
+          error.replaceChildren(notice('Could not save the name.', 'error'))
+        }
         renderAccount()
       },
     })
 
+    account.append(el('p', { class: 'row' }, el('label', { class: 'muted', for: 'nickname' }, 'Playing as'), nameInput))
+
+    if (google) {
+      account.append(
+        el(
+          'p',
+          { class: 'row' },
+          el('span', { class: 'muted small' }, `Signed in with Google as ${user.email ?? name}.`),
+          button('Sign out', onSignOut, { class: 'text' }),
+        ),
+        el('p', {}, link('History', '/history')),
+      )
+      return
+    }
+
     account.append(
-      el('p', { class: 'row' }, el('label', { class: 'muted', for: 'nickname' }, 'Playing as'), nameInput),
       el(
         'p',
         { class: 'row' },
@@ -74,7 +54,6 @@ export function homeView() {
       ),
       el('p', {}, link('History on this device', '/history')),
     )
-    nameInput.id = 'nickname'
   }
 
   async function onGoogle() {
@@ -86,11 +65,13 @@ export function homeView() {
         error.replaceChildren(notice('Google sign-in failed. Try again.', 'error'))
       }
     }
+    renderAccount()
   }
 
   async function onSignOut() {
     error.replaceChildren()
     await signOutUser()
+    renderAccount()
   }
 
   const stop = onUser(renderAccount)
@@ -105,9 +86,8 @@ export function homeView() {
       'div',
       { class: 'choices' },
       link('Solo', '/new/solo', { class: 'choice' }),
-      link('Multiplayer', '/new/multi', { class: 'choice' }),
+      link('Multiplayer', '/multi', { class: 'choice' }),
     ),
-    joinForm,
     error,
     account,
   )

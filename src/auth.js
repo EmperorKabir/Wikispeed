@@ -2,13 +2,16 @@ import {
   GoogleAuthProvider,
   linkWithPopup,
   onAuthStateChanged,
+  onIdTokenChanged,
   signInAnonymously,
   signInWithPopup,
   signOut,
+  updateProfile,
 } from 'firebase/auth'
 import { auth } from './firebase.js'
 
 const NICKNAME_KEY = 'wikispeed.nickname'
+const NAME_LIMIT = 32
 
 export function ensureSignedIn() {
   return new Promise((resolve, reject) => {
@@ -30,30 +33,42 @@ export function ensureSignedIn() {
 }
 
 export function onUser(callback) {
-  return onAuthStateChanged(auth, callback)
+  return onIdTokenChanged(auth, callback)
 }
 
 export function currentUser() {
   return auth.currentUser
 }
 
+function googleProfile(user) {
+  return user?.providerData?.find((p) => p.providerId === 'google.com') ?? null
+}
+
 export function isGoogleUser(user = auth.currentUser) {
-  return Boolean(user?.providerData?.some((p) => p.providerId === 'google.com'))
+  return googleProfile(user) !== null
 }
 
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider()
   const user = auth.currentUser
+  let linked = false
   if (user?.isAnonymous) {
     try {
       await linkWithPopup(user, provider)
-      return auth.currentUser
+      linked = true
     } catch (error) {
       if (error?.code !== 'auth/credential-already-in-use') throw error
     }
   }
-  const credential = await signInWithPopup(auth, provider)
-  return credential.user
+  if (!linked) await signInWithPopup(auth, provider)
+
+  const current = auth.currentUser
+  const google = googleProfile(current)
+  if (current && google && !current.displayName && google.displayName) {
+    await updateProfile(current, { displayName: google.displayName.slice(0, NAME_LIMIT) })
+  }
+  await current?.reload()
+  return auth.currentUser
 }
 
 export async function signOutUser() {
@@ -70,7 +85,7 @@ export function nickname() {
 }
 
 export function setNickname(name) {
-  const trimmed = String(name ?? '').trim().slice(0, 32)
+  const trimmed = String(name ?? '').trim().slice(0, NAME_LIMIT)
   try {
     if (trimmed) localStorage.setItem(NICKNAME_KEY, trimmed)
     else localStorage.removeItem(NICKNAME_KEY)
@@ -80,8 +95,20 @@ export function setNickname(name) {
   return trimmed
 }
 
+export async function setName(name) {
+  const trimmed = String(name ?? '').trim().slice(0, NAME_LIMIT)
+  const user = auth.currentUser
+  if (user && isGoogleUser(user)) {
+    await updateProfile(user, { displayName: trimmed || googleProfile(user)?.displayName || '' })
+    return displayName(user)
+  }
+  return setNickname(trimmed)
+}
+
 export function displayName(user = auth.currentUser) {
-  const google = user?.displayName?.trim()
-  if (google) return google.slice(0, 32)
+  if (isGoogleUser(user)) {
+    const name = user.displayName?.trim() || googleProfile(user)?.displayName?.trim() || ''
+    return name.slice(0, NAME_LIMIT)
+  }
   return nickname()
 }

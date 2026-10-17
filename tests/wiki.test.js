@@ -53,12 +53,14 @@ describe('titleFromKey', () => {
 describe('sanitiseArticle', () => {
   const html = [
     '<!doctype html><html><head><title>United Kingdom</title><link rel="stylesheet" href="x.css">',
-    '<meta charset="utf-8"><script>alert(1)</script><style>p{}</style></head>',
+    '<meta charset="utf-8"><script>alert(1)</script></head>',
     '<body><section><h2>Head<span class="mw-editsection">[edit]</span></h2>',
+    '<style data-mw-deduplicate="TemplateStyles:r1">.infobox{border:1px solid}</style>',
     '<p>See <a rel="mw:WikiLink" href="./England#History">England</a>, ',
     '<a rel="mw:WikiLink" href="./File:Map.png">map</a>, ',
     '<a rel="mw:ExtLink" href="https://example.com">site</a> and <a href="#Notes">notes</a>.</p>',
     '<figure><img src="//upload.wikimedia.org/a.png" srcset="//upload.wikimedia.org/a2x.png 2x"></figure>',
+    '<table class="infobox" style="width:22em"><tr><td>Row</td></tr></table>',
     '<p onclick="x()">Event</p><div class="navbox">nav</div>',
     '<audio controls><source src="//upload.wikimedia.org/a.ogg"></audio></section></body></html>',
   ].join('')
@@ -68,10 +70,14 @@ describe('sanitiseArticle', () => {
   it('extracts the title', () => {
     expect(title).toBe('United Kingdom')
   })
-  it('removes scripts, styles, head links and edit links', () => {
-    for (const sel of ['script', 'style', 'link', 'meta', '.mw-editsection', '.navbox', 'audio', 'source']) {
+  it('removes scripts, head links, edit links, navboxes and media players', () => {
+    for (const sel of ['script', 'link', 'meta', '.mw-editsection', '.navbox', 'audio', 'source']) {
       expect(body.querySelector(sel), sel).toBeNull()
     }
+  })
+  it('keeps template styles and inline styles so pages look like Wikipedia', () => {
+    expect(body.querySelector('style[data-mw-deduplicate]')).not.toBeNull()
+    expect(body.querySelector('table.infobox').getAttribute('style')).toBe('width:22em')
   })
   it('keeps article links with a data-key', () => {
     const a = body.querySelector('a[data-key]')

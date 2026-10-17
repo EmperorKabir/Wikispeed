@@ -4,6 +4,16 @@ const REST = `${ORIGIN}/api/rest_v1`
 
 export const WIKI_UA = 'Wikispeed/0.1 (https://wikispeed-game.web.app; bhasin.kabir@gmail.com)'
 
+const STYLE_MODULES = [
+  'site.styles',
+  'ext.cite.styles',
+  'mediawiki.skinning.content.parsoid',
+  'ext.math.styles',
+  'mediawiki.page.gallery.styles',
+]
+
+export const WIKI_STYLES_URL = `${ORIGIN}/w/load.php?lang=en&modules=${encodeURIComponent(STYLE_MODULES.join('|'))}&only=styles&skin=vector`
+
 const BLOCKED_NAMESPACES = [
   'file', 'image', 'media', 'category', 'help', 'wikipedia', 'wp', 'project', 'template', 'special',
   'portal', 'talk', 'user', 'draft', 'module', 'mediawiki', 'book', 'timedtext', 'gadget',
@@ -11,9 +21,9 @@ const BLOCKED_NAMESPACES = [
 ]
 
 const STRIP_SELECTOR = [
-  'script', 'style', 'link', 'meta', 'noscript', 'iframe', 'object', 'embed', 'form', 'input', 'button',
+  'script', 'link', 'meta', 'noscript', 'iframe', 'object', 'embed', 'form', 'input', 'button',
   'audio', 'video', 'source', 'track', 'map', 'area',
-  '.mw-editsection', '.navbox', '.sistersitebox', '.metadata', '.ambox', '.hatnote', '.mw-empty-elt',
+  '.mw-editsection', '.navbox', '.sistersitebox', '.ambox', '.mw-empty-elt',
   '#coordinates', '.mw-indicators', '.noprint', '[typeof~="mw:Extension/indicator"]',
 ].join(',')
 
@@ -57,7 +67,7 @@ export function sanitiseArticle(html) {
   for (const node of body.querySelectorAll('*')) {
     for (const attr of [...node.attributes]) {
       const name = attr.name.toLowerCase()
-      if (name.startsWith('on') || name === 'style' || name === 'id' || name === 'tabindex') {
+      if (name.startsWith('on') || name === 'tabindex' || name === 'contenteditable') {
         node.removeAttribute(attr.name)
       }
     }
@@ -155,4 +165,17 @@ export async function fetchArticle(key) {
 
 export function articleUrl(key) {
   return `${ORIGIN}/wiki/${encodeURIComponent(key)}`
+}
+
+export function loadWikiStyles() {
+  const id = 'wiki-styles'
+  let link = document.getElementById(id)
+  if (!link) {
+    link = document.createElement('link')
+    link.id = id
+    link.rel = 'stylesheet'
+    link.href = WIKI_STYLES_URL
+    document.head.append(link)
+  }
+  return () => link.remove()
 }
