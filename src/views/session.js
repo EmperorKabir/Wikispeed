@@ -85,8 +85,8 @@ export function sessionView({ code }) {
         el('span', { class: 'arrow', 'aria-label': 'to' }, '→'),
         mask(session.hideTarget, visiblePage('target')),
       ),
-      session.mode === 'multi' ? codeBlock() : null,
     )
+    if (session.mode === 'multi') header.append(codeBlock())
 
     renderAction()
     renderBoard(scoring)

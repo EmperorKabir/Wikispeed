@@ -59,7 +59,8 @@ describe('sanitiseArticle', () => {
     '<a rel="mw:WikiLink" href="./File:Map.png">map</a>, ',
     '<a rel="mw:ExtLink" href="https://example.com">site</a> and <a href="#Notes">notes</a>.</p>',
     '<figure><img src="//upload.wikimedia.org/a.png" srcset="//upload.wikimedia.org/a2x.png 2x"></figure>',
-    '<p onclick="x()">Event</p><div class="navbox">nav</div></section></body></html>',
+    '<p onclick="x()">Event</p><div class="navbox">nav</div>',
+    '<audio controls><source src="//upload.wikimedia.org/a.ogg"></audio></section></body></html>',
   ].join('')
 
   const { title, body } = sanitiseArticle(html)
@@ -68,7 +69,7 @@ describe('sanitiseArticle', () => {
     expect(title).toBe('United Kingdom')
   })
   it('removes scripts, styles, head links and edit links', () => {
-    for (const sel of ['script', 'style', 'link', 'meta', '.mw-editsection', '.navbox']) {
+    for (const sel of ['script', 'style', 'link', 'meta', '.mw-editsection', '.navbox', 'audio', 'source']) {
       expect(body.querySelector(sel), sel).toBeNull()
     }
   })
