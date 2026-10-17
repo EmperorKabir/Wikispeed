@@ -9,9 +9,16 @@ export function orderRuns(runs, scoring) {
   const compare = scoring === 'clicks' ? byClicks : byTime
   return [...runs].sort((a, b) => {
     if (a.done !== b.done) return a.done ? -1 : 1
-    if (!a.done) return (a.startedAt ?? 0) - (b.startedAt ?? 0)
+    if (!a.done) return millis(a.startedAt) - millis(b.startedAt)
     return compare(a, b)
   })
+}
+
+function millis(value) {
+  if (!value) return 0
+  if (typeof value === 'number') return value
+  if (typeof value.toMillis === 'function') return value.toMillis()
+  return 0
 }
 
 export function formatMs(ms) {

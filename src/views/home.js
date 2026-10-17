@@ -74,7 +74,9 @@ export function homeView() {
     renderAccount()
   }
 
-  const stop = onUser(renderAccount)
+  const stop = onUser(() => {
+    if (document.activeElement?.id !== 'nickname') renderAccount()
+  })
   renderAccount()
 
   const root = el(

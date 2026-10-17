@@ -58,9 +58,14 @@ export async function playView({ code }) {
     article,
   )
 
-  const unloadStyles = loadWikiStyles()
+  try {
+    await startRun(code, user.uid, name, route.start.key)
+  } catch {
+    go(`/s/${code}`)
+    return view(el('div'))
+  }
 
-  await startRun(code, user.uid, name, route.start.key)
+  const unloadStyles = loadWikiStyles()
   timer.start()
   timer.pause()
   if (timed) {

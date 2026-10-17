@@ -1,4 +1,4 @@
-import { ensureSignedIn } from './auth.js'
+import { completeRedirect, ensureSignedIn } from './auth.js'
 import { route, startRouter } from './router.js'
 import { el, notice } from './ui.js'
 import { historyView } from './views/history.js'
@@ -17,7 +17,11 @@ route('/s/:code', sessionView)
 route('/play/:code', playView)
 route('/history', historyView)
 
-ensureSignedIn()
+completeRedirect()
+  .catch((err) => {
+    outlet.replaceChildren(notice(`Google sign-in did not complete: ${err.message}`, 'error'))
+  })
+  .then(ensureSignedIn)
   .then(() => startRouter(outlet))
   .catch((err) => {
     outlet.replaceChildren(

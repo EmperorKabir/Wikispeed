@@ -1,10 +1,14 @@
 import {
   GoogleAuthProvider,
+  getRedirectResult,
   linkWithPopup,
+  linkWithRedirect,
   onAuthStateChanged,
   onIdTokenChanged,
   signInAnonymously,
+  signInWithCredential,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   updateProfile,
 } from 'firebase/auth'
@@ -48,27 +52,71 @@ export function isGoogleUser(user = auth.currentUser) {
   return googleProfile(user) !== null
 }
 
+function prefersRedirect() {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+}
+
+async function adoptGoogleName() {
+  const user = auth.currentUser
+  const google = googleProfile(user)
+  if (user && google && !user.displayName && google.displayName) {
+    await updateProfile(user, { displayName: google.displayName.slice(0, NAME_LIMIT) })
+  }
+  await user?.reload()
+}
+
+async function useExistingAccount(error) {
+  const credential = GoogleAuthProvider.credentialFromError(error)
+  if (!credential) throw error
+  await signInWithCredential(auth, credential)
+}
+
+async function startRedirect(provider) {
+  const user = auth.currentUser
+  if (user?.isAnonymous) await linkWithRedirect(user, provider)
+  else await signInWithRedirect(auth, provider)
+}
+
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider()
-  const user = auth.currentUser
-  let linked = false
-  if (user?.isAnonymous) {
-    try {
-      await linkWithPopup(user, provider)
-      linked = true
-    } catch (error) {
-      if (error?.code !== 'auth/credential-already-in-use') throw error
-    }
+  if (prefersRedirect()) {
+    await startRedirect(provider)
+    return null
   }
-  if (!linked) await signInWithPopup(auth, provider)
 
-  const current = auth.currentUser
-  const google = googleProfile(current)
-  if (current && google && !current.displayName && google.displayName) {
-    await updateProfile(current, { displayName: google.displayName.slice(0, NAME_LIMIT) })
+  const user = auth.currentUser
+  try {
+    if (user?.isAnonymous) {
+      try {
+        await linkWithPopup(user, provider)
+      } catch (error) {
+        if (error?.code !== 'auth/credential-already-in-use') throw error
+        await useExistingAccount(error)
+      }
+    } else {
+      await signInWithPopup(auth, provider)
+    }
+  } catch (error) {
+    if (error?.code === 'auth/popup-blocked') {
+      await startRedirect(provider)
+      return null
+    }
+    throw error
   }
-  await current?.reload()
+
+  await adoptGoogleName()
   return auth.currentUser
+}
+
+export async function completeRedirect() {
+  try {
+    const result = await getRedirectResult(auth)
+    if (result) await adoptGoogleName()
+  } catch (error) {
+    if (error?.code !== 'auth/credential-already-in-use') throw error
+    await useExistingAccount(error)
+    await adoptGoogleName()
+  }
 }
 
 export async function signOutUser() {

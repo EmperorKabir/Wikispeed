@@ -39,6 +39,9 @@ export function setupView({ mode }) {
 
   async function onCreate() {
     error.replaceChildren()
+    createButton.disabled = true
+    await Promise.all([start.settled(), finish.settled()])
+    createButton.disabled = false
     const from = start.value()
     const to = finish.value()
     if (!from || !to) {
@@ -86,6 +89,12 @@ function picker(label, name) {
   let page = null
   let debounce = null
   let seq = 0
+  let pending = Promise.resolve()
+
+  function track(promise) {
+    pending = promise.catch(() => {})
+    return promise
+  }
 
   const list = el('datalist', { id: `${name}-suggestions` })
   const input = el('input', {
@@ -96,11 +105,11 @@ function picker(label, name) {
     list: list.id,
     placeholder: 'Type a title',
     oninput: onInput,
-    onchange: () => resolve(input.value),
+    onchange: () => track(resolve(input.value)),
   })
   const status = el('p', { class: 'muted small', 'aria-live': 'polite' })
   const hide = el('input', { type: 'checkbox', name: `${name}-hide`, onchange: refresh })
-  const randomButton = button('Random', onRandom, { class: 'secondary' })
+  const randomButton = button('Random', () => track(onRandom()), { class: 'secondary' })
 
   function onInput() {
     page = null
@@ -187,5 +196,6 @@ function picker(label, name) {
     el: root,
     value: () => page,
     hidden: () => hide.checked,
+    settled: () => pending,
   }
 }
