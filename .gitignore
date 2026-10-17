@@ -1,0 +1,43 @@
+# dependencies and build output
+node_modules/
+dist/
+.vite/
+
+# local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+serviceAccountKey*.json
+*-service-account*.json
+google-services.json
+GoogleService-Info.plist
+signing.properties
+local.properties
+secrets/
+
+# firebase local state
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+*-debug.log
+
+# editors and OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# logs and temp
+logs/
+*.log
+npm-debug.log*
+.cache/
+tmp/
