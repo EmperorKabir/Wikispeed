@@ -1,0 +1,176 @@
+import { currentUser } from '../auth.js'
+import { createSession } from '../db.js'
+import { go } from '../router.js'
+import { SCORING } from '../score.js'
+import { button, el, link, notice, view } from '../ui.js'
+import { randomArticle, resolveTitle, suggestTitles } from '../wiki.js'
+
+export function setupView({ mode }) {
+  if (mode !== 'solo' && mode !== 'multi') {
+    go('/')
+    return view(el('div'))
+  }
+
+  let scoring = 'time'
+  const error = el('div')
+
+  const scoringButtons = Object.entries(SCORING).map(([key, { label }]) =>
+    el(
+      'button',
+      {
+        type: 'button',
+        class: 'choice',
+        role: 'radio',
+        'aria-checked': String(key === scoring),
+        onclick: () => {
+          scoring = key
+          for (const b of scoringButtons) b.setAttribute('aria-checked', String(b.dataset.key === key))
+        },
+        dataset: { key },
+      },
+      label,
+    ),
+  )
+
+  const start = picker('Start article', 'start')
+  const finish = picker('Finish article', 'finish')
+
+  const createButton = button('Create', onCreate, { class: 'primary' })
+
+  async function onCreate() {
+    error.replaceChildren()
+    const from = start.value()
+    const to = finish.value()
+    if (!from || !to) {
+      error.replaceChildren(notice('Choose both articles first.', 'error'))
+      return
+    }
+    if (from.key === to.key) {
+      error.replaceChildren(notice('Start and finish must differ.', 'error'))
+      return
+    }
+    createButton.disabled = true
+    try {
+      const code = await createSession({
+        uid: currentUser().uid,
+        mode,
+        scoring,
+        start: { key: from.key, title: from.title },
+        target: { key: to.key, title: to.title },
+        hideStart: start.hidden(),
+        hideTarget: finish.hidden(),
+      })
+      go(`/s/${code}`)
+    } catch (err) {
+      error.replaceChildren(notice(`Could not create the session: ${err.message}`, 'error'))
+      createButton.disabled = false
+    }
+  }
+
+  const root = el(
+    'div',
+    { class: 'stack' },
+    el('p', { class: 'crumbs' }, link('Home', '/'), el('span', {}, mode === 'solo' ? 'Solo' : 'Multiplayer')),
+    el('h1', {}, 'New game'),
+    el('fieldset', {}, el('legend', {}, 'Scoring'), el('div', { class: 'choices', role: 'radiogroup' }, scoringButtons)),
+    start.el,
+    finish.el,
+    error,
+    createButton,
+  )
+
+  return view(root)
+}
+
+function picker(label, name) {
+  let page = null
+  let debounce = null
+  let seq = 0
+
+  const list = el('datalist', { id: `${name}-suggestions` })
+  const input = el('input', {
+    type: 'text',
+    name,
+    id: `${name}-input`,
+    autocomplete: 'off',
+    list: list.id,
+    placeholder: 'Type a title',
+    oninput: onInput,
+    onchange: () => resolve(input.value),
+  })
+  const status = el('p', { class: 'muted small', 'aria-live': 'polite' })
+  const hide = el('input', { type: 'checkbox', name: `${name}-hide` })
+  const randomButton = button('Random', onRandom, { class: 'secondary' })
+
+  function onInput() {
+    page = null
+    status.textContent = ''
+    clearTimeout(debounce)
+    const q = input.value
+    debounce = setTimeout(async () => {
+      try {
+        const pages = await suggestTitles(q)
+        list.replaceChildren(...pages.map((p) => el('option', { value: p.title }, p.description)))
+      } catch {
+        list.replaceChildren()
+      }
+    }, 250)
+  }
+
+  async function resolve(text) {
+    const mine = ++seq
+    if (!text.trim()) return
+    status.textContent = 'Checking'
+    try {
+      const found = await resolveTitle(text)
+      if (mine !== seq) return
+      if (!found) {
+        page = null
+        status.textContent = 'No article with that title'
+      } else if (found.type !== 'standard') {
+        page = null
+        status.textContent = 'Pick a specific article, not a disambiguation page'
+      } else {
+        set(found)
+      }
+    } catch (err) {
+      if (mine === seq) status.textContent = err.message
+    }
+  }
+
+  async function onRandom() {
+    const mine = ++seq
+    randomButton.disabled = true
+    status.textContent = 'Picking'
+    try {
+      const found = await randomArticle()
+      if (mine !== seq) return
+      input.value = found.title
+      set(found)
+    } catch (err) {
+      if (mine === seq) status.textContent = err.message
+    } finally {
+      randomButton.disabled = false
+    }
+  }
+
+  function set(found) {
+    page = found
+    status.textContent = found.description ? `${found.title}: ${found.description}` : found.title
+  }
+
+  const root = el(
+    'fieldset',
+    { class: 'picker' },
+    el('legend', {}, label),
+    el('div', { class: 'row' }, input, randomButton, list),
+    status,
+    el('label', { class: 'check' }, hide, ' Hide until the game starts'),
+  )
+
+  return {
+    el: root,
+    value: () => page,
+    hidden: () => hide.checked,
+  }
+}

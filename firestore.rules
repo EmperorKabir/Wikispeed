@@ -6,14 +6,80 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(uid) {
-      return signedIn() && request.auth.uid == uid;
+    function sessionDoc(code) {
+      return get(/databases/$(database)/documents/sessions/$(code)).data;
     }
 
-    match /users/{uid} {
+    function validPage(page) {
+      return page is map
+        && page.keys().hasOnly(['key', 'title'])
+        && page.key is string && page.key.size() > 0 && page.key.size() <= 300
+        && page.title is string && page.title.size() > 0 && page.title.size() <= 300;
+    }
+
+    function validSession(d) {
+      return d.keys().hasOnly(['mode', 'scoring', 'host', 'hideStart', 'hideTarget', 'start', 'target', 'status', 'createdAt', 'startedAt'])
+        && d.mode in ['solo', 'multi']
+        && d.scoring in ['time', 'clicks']
+        && d.host == request.auth.uid
+        && d.hideStart is bool && d.hideTarget is bool
+        && (d.hideStart ? d.start == null : validPage(d.start))
+        && (d.hideTarget ? d.target == null : validPage(d.target))
+        && d.status == (d.mode == 'solo' ? 'open' : 'lobby')
+        && d.createdAt == request.time
+        && (d.startedAt == null || d.startedAt == request.time);
+    }
+
+    function validRun(d) {
+      return d.keys().hasOnly(['name', 'clicks', 'ms', 'path', 'done', 'startedAt', 'finishedAt'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 32
+        && d.clicks is int && d.clicks >= 0
+        && d.ms is number && d.ms >= 0
+        && d.path is list && d.path.size() <= 500
+        && d.done is bool;
+    }
+
+    match /sessions/{code} {
       allow read: if signedIn();
-      allow create, update: if isOwner(uid);
+      allow create: if signedIn()
+        && code.matches('^[A-HJ-NP-Z2-9]{6}$')
+        && validSession(request.resource.data);
+      allow update: if signedIn()
+        && resource.data.host == request.auth.uid
+        && resource.data.status == 'lobby'
+        && request.resource.data.status == 'open'
+        && request.resource.data.startedAt == request.time
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'startedAt']);
       allow delete: if false;
+
+      match /private/route {
+        allow read: if signedIn()
+          && (sessionDoc(code).host == request.auth.uid || sessionDoc(code).status == 'open');
+        allow create: if signedIn()
+          && request.resource.data.keys().hasOnly(['start', 'target'])
+          && validPage(request.resource.data.start)
+          && validPage(request.resource.data.target)
+          && getAfter(/databases/$(database)/documents/sessions/$(code)).data.host == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      match /runs/{uid} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && sessionDoc(code).status == 'open'
+          && validRun(request.resource.data)
+          && request.resource.data.done == false;
+        allow update: if signedIn()
+          && request.auth.uid == uid
+          && resource.data.done == false
+          && validRun(request.resource.data);
+        allow delete: if false;
+      }
+    }
+
+    match /users/{uid}/history/{code} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
     }
 
     match /{document=**} {
