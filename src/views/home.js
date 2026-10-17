@@ -82,7 +82,11 @@ export function homeView() {
     'div',
     { class: 'stack' },
     el('h1', {}, 'Wixpert'),
-    el('p', { class: 'muted' }, 'Get from one Wikipedia article to another using only the links.'),
+    el(
+      'p',
+      { class: 'muted' },
+      'Get from one Wikipedia article to another using only the links. You can play aiming for either the fewest clicks or the fastest time. You can play alone or with others. When playing with others, you share a group code, so you don’t have to play at the same time; you can see how others are doing in your History section as they play.',
+    ),
     el(
       'div',
       { class: 'choices' },
