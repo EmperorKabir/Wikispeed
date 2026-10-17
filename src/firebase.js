@@ -4,9 +4,11 @@ import { getFirestore } from 'firebase/firestore'
 
 const env = import.meta.env
 
+const hostedHere = /\.(web\.app|firebaseapp\.com)$/.test(location.hostname)
+
 const config = {
   apiKey: env.VITE_FIREBASE_API_KEY,
-  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN,
+  authDomain: hostedHere ? location.hostname : env.VITE_FIREBASE_AUTH_DOMAIN,
   projectId: env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID,
