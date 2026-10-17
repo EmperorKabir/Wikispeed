@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
@@ -18,8 +19,13 @@ import { db } from './firebase.js'
 const sessionRef = (code) => doc(db, 'sessions', code)
 const routeRef = (code) => doc(db, 'sessions', code, 'private', 'route')
 const runsRef = (code) => collection(db, 'sessions', code, 'runs')
-const runRef = (code, uid) => doc(db, 'sessions', code, 'runs', uid)
+const runRef = (code, id) => doc(db, 'sessions', code, 'runs', id)
 const historyRef = (uid) => collection(db, 'users', uid, 'history')
+
+function normaliseRun(snap) {
+  const data = snap.data()
+  return { id: snap.id, uid: data.uid ?? snap.id, attempt: data.attempt ?? 1, ...data }
+}
 
 export async function createSession({ uid, mode, scoring, start, target, hideStart, hideTarget }) {
   const solo = mode === 'solo'
@@ -62,11 +68,7 @@ export function watchSession(code, onChange, onError) {
 }
 
 export function watchRuns(code, onChange, onError) {
-  return onSnapshot(
-    runsRef(code),
-    (snap) => onChange(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
-    onError,
-  )
+  return onSnapshot(runsRef(code), (snap) => onChange(snap.docs.map(normaliseRun)), onError)
 }
 
 export async function openSession(code) {
@@ -79,7 +81,13 @@ export async function readRoute(code) {
 }
 
 export async function startRun(code, uid, name, startKey) {
-  await setDoc(runRef(code, uid), {
+  const all = await getDocs(runsRef(code))
+  const previous = all.docs.map(normaliseRun).filter((run) => run.uid === uid)
+  const attempt = previous.length + 1
+  const id = `${uid}-${attempt}`
+  await setDoc(runRef(code, id), {
+    uid,
+    attempt,
     name,
     clicks: 0,
     ms: 0,
@@ -89,12 +97,13 @@ export async function startRun(code, uid, name, startKey) {
     startedAt: serverTimestamp(),
     finishedAt: null,
   })
+  return { id, attempt, previous }
 }
 
-export async function recordRun(code, uid, { name, clicks, ms, path, done }, history) {
+export async function recordRun(code, runId, uid, { name, clicks, ms, path, done }, history) {
   const batch = writeBatch(db)
   batch.set(
-    runRef(code, uid),
+    runRef(code, runId),
     { name, clicks, ms, path: path.slice(0, 500), done, quit: !done, finishedAt: serverTimestamp() },
     { merge: true },
   )

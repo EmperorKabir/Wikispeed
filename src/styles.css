@@ -364,11 +364,23 @@ legend {
 }
 
 .path {
-  margin: 0;
+  margin: 0.25rem 0 0;
   padding-left: 1.25rem;
   font-size: 0.875rem;
   display: grid;
   gap: 0.125rem;
+}
+
+.attempts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.attempt-line {
+  gap: 0.5rem;
 }
 
 .history {

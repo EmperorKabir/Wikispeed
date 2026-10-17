@@ -31,7 +31,9 @@ service cloud.firestore {
     }
 
     function validRun(d) {
-      return d.keys().hasOnly(['name', 'clicks', 'ms', 'path', 'done', 'quit', 'startedAt', 'finishedAt'])
+      return d.keys().hasOnly(['uid', 'attempt', 'name', 'clicks', 'ms', 'path', 'done', 'quit', 'startedAt', 'finishedAt'])
+        && d.uid is string
+        && d.attempt is int && d.attempt >= 1
         && d.name is string && d.name.size() >= 1 && d.name.size() <= 32
         && d.clicks is int && d.clicks >= 0
         && d.ms is number && d.ms >= 0
@@ -42,8 +44,14 @@ service cloud.firestore {
         && (d.finishedAt == null || d.finishedAt is timestamp);
     }
 
+    function honestResult(d, before) {
+      return d.ms <= request.time.toMillis() - before.startedAt.toMillis()
+        && (d.path.size() == 500 ? d.clicks >= 499 : d.clicks == d.path.size() - 1);
+    }
+
     function validHistory(d) {
-      return d.keys().hasOnly(['mode', 'scoring', 'start', 'target', 'clicks', 'ms', 'done', 'at'])
+      return d.keys().hasOnly(['mode', 'scoring', 'start', 'target', 'clicks', 'ms', 'done', 'attempts', 'at'])
+        && d.attempts is int && d.attempts >= 1
         && d.mode in ['solo', 'multi']
         && d.scoring in ['time', 'clicks']
         && d.start is string && d.start.size() <= 300
@@ -80,17 +88,31 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
-      match /runs/{uid} {
+      match /runs/{runId} {
         allow read: if signedIn();
         allow create: if signedIn()
-          && request.auth.uid == uid
-          && sessionDoc(code).status == 'open'
           && validRun(request.resource.data)
-          && request.resource.data.done == false;
+          && request.resource.data.uid == request.auth.uid
+          && runId == request.auth.uid + '-' + string(request.resource.data.attempt)
+          && sessionDoc(code).status == 'open'
+          && request.resource.data.done == false
+          && request.resource.data.quit == false
+          && request.resource.data.clicks == 0
+          && request.resource.data.ms == 0
+          && request.resource.data.path.size() == 1
+          && request.resource.data.startedAt == request.time
+          && request.resource.data.finishedAt == null;
         allow update: if signedIn()
-          && request.auth.uid == uid
+          && resource.data.uid == request.auth.uid
           && resource.data.done == false
-          && validRun(request.resource.data);
+          && resource.data.quit == false
+          && validRun(request.resource.data)
+          && request.resource.data.uid == resource.data.uid
+          && request.resource.data.attempt == resource.data.attempt
+          && request.resource.data.startedAt == resource.data.startedAt
+          && request.resource.data.finishedAt == request.time
+          && (request.resource.data.done || request.resource.data.quit)
+          && honestResult(request.resource.data, resource.data);
         allow delete: if false;
       }
     }

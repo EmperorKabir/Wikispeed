@@ -49,8 +49,12 @@ export function historyView() {
       el(
         'div',
         { class: 'row' },
-        el('span', { class: `outcome ${e.done ? 'ok' : 'quit'}` }, e.done ? `Finished: ${result}` : 'Gave up'),
-        el('span', { class: 'muted small' }, `${e.mode === 'solo' ? 'Solo' : 'Multiplayer'} · ${SCORING[e.scoring]?.label ?? ''}`),
+        el('span', { class: `outcome ${e.done ? 'ok' : 'quit'}` }, e.done ? `Best: ${result}` : 'Not finished'),
+        el(
+          'span',
+          { class: 'muted small' },
+          `${e.mode === 'solo' ? 'Solo' : 'Multiplayer'} · ${SCORING[e.scoring]?.label ?? ''}${e.attempts > 1 ? ` · ${e.attempts} attempts` : ''}`,
+        ),
       ),
     )
   }

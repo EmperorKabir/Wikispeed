@@ -1,7 +1,7 @@
 import { currentUser, displayName } from '../auth.js'
 import { getSession, readRoute, recordRun, startRun } from '../db.js'
 import { go } from '../router.js'
-import { formatMs } from '../score.js'
+import { formatMs, playerRows } from '../score.js'
 import { createTimer } from '../timer.js'
 import { button, el, link, notice, view } from '../ui.js'
 import { articleUrl, fetchArticle, loadWikiStyles } from '../wiki.js'
@@ -30,6 +30,7 @@ export async function playView({ code }) {
   const content = el('div', { class: 'mw-parser-output' })
   const article = el('article', { class: 'wiki-paper', 'aria-busy': 'true', onclick: onArticleClick }, content)
   const status = el('div')
+  const attemptOut = el('span', { class: 'muted small' })
 
   const bar = el(
     'div',
@@ -38,6 +39,7 @@ export async function playView({ code }) {
     el(
       'div',
       { class: 'stats' },
+      attemptOut,
       el('span', { class: 'primary-stat' }, el('span', { class: 'muted small' }, timed ? 'Time ' : 'Clicks '), metricOut),
       button('Give up', giveUp, { class: 'text' }),
     ),
@@ -52,12 +54,14 @@ export async function playView({ code }) {
     article,
   )
 
+  let run
   try {
-    await startRun(code, user.uid, name, route.start.key)
+    run = await startRun(code, user.uid, name, route.start.key)
   } catch {
     go(`/s/${code}`)
     return view(el('div'))
   }
+  if (run.attempt > 1) attemptOut.textContent = `Attempt ${run.attempt}`
 
   const unloadStyles = loadWikiStyles()
   timer.start()
@@ -123,8 +127,11 @@ export async function playView({ code }) {
 
   function record(done) {
     const ms = Math.round(timer.elapsed())
+    const current = { uid: user.uid, attempt: run.attempt, name, clicks, ms, done, quit: !done }
+    const best = playerRows([...run.previous, current], session.scoring)[0].best
     return recordRun(
       code,
+      run.id,
       user.uid,
       { name, clicks, ms, path, done },
       {
@@ -132,9 +139,10 @@ export async function playView({ code }) {
         scoring: session.scoring,
         start: route.start.title,
         target: route.target.title,
-        clicks,
-        ms,
-        done,
+        clicks: best.clicks,
+        ms: best.ms,
+        done: Boolean(best.done),
+        attempts: run.attempt,
       },
     )
   }
@@ -168,7 +176,7 @@ export async function playView({ code }) {
     try {
       await record(false)
     } catch {
-      // the run stays marked as in progress; nothing else to do here
+      // the attempt stays marked as unfinished; nothing else to do here
     }
     go(`/s/${code}`)
   }
