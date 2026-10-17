@@ -4,6 +4,7 @@ import { openSession, readRoute, watchRuns, watchSession } from '../db.js'
 import { go } from '../router.js'
 import { SCORING, formatMs, orderRuns } from '../score.js'
 import { button, copyText, el, link, mask, notice, view } from '../ui.js'
+import { titleFromKey } from '../wiki.js'
 
 function notFound() {
   return view(el('div', { class: 'stack' }, el('p', { class: 'crumbs' }, link('Home', '/')), el('h1', {}, 'No session with that code')))
@@ -17,6 +18,7 @@ export function sessionView({ code: raw }) {
   let session
   let runs = []
   let route = null
+  const openPaths = new Set()
 
   const header = el('div', { class: 'stack' })
   const action = el('div', { class: 'stack' })
@@ -181,33 +183,59 @@ export function sessionView({ code: raw }) {
     action.append(el('div', { class: 'row' }, nameInput, playButton))
   }
 
+  function pathsVisible() {
+    const mine = myRun()
+    return session.mode === 'multi' && Boolean(mine && (mine.done || mine.quit))
+  }
+
+  function pathRow(run) {
+    const steps = (run.path ?? []).map((key, i) =>
+      el('li', {}, i === 0 ? el('span', { class: 'muted small' }, 'Start: ') : null, titleFromKey(key)),
+    )
+    return el(
+      'tr',
+      { class: 'path-row' },
+      el('td', { colspan: '4' }, steps.length ? el('ol', { class: 'path' }, steps) : el('span', { class: 'muted small' }, 'No path recorded.')),
+    )
+  }
+
   function renderBoard(scoring) {
     board.replaceChildren()
     if (runs.length === 0) {
       if (session.status !== 'lobby') board.append(el('p', { class: 'muted' }, 'No runs yet.'))
       return
     }
-    const rows = orderRuns(runs, session.scoring).map((run, i) =>
-      el(
-        'tr',
-        { class: run.id === uid ? 'me' : null },
+    const showPaths = pathsVisible()
+    const rows = orderRuns(runs, session.scoring).flatMap((run, i) => {
+      const open = openPaths.has(run.id)
+      const cells = [
         el('td', {}, run.done ? String(i + 1) : ''),
         el('td', {}, run.name),
         el('td', { class: 'num' }, run.done ? metric(run) : run.quit ? 'gave up' : 'playing'),
-      ),
-    )
+      ]
+      if (showPaths) {
+        const toggle = button(open ? 'Hide path' : 'Path', () => {
+          if (open) openPaths.delete(run.id)
+          else openPaths.add(run.id)
+          renderBoard(scoring)
+        }, { class: 'text small', 'aria-expanded': String(open) })
+        cells.push(el('td', { class: 'num' }, run.path?.length > 1 || run.done ? toggle : ''))
+      }
+      const row = el('tr', { class: run.id === uid ? 'me' : null }, cells)
+      return showPaths && open ? [row, pathRow(run)] : [row]
+    })
+    const head = [el('th', {}, '#'), el('th', {}, 'Player'), el('th', { class: 'num' }, scoring.metric)]
+    if (showPaths) head.push(el('th', { class: 'num' }, 'Route'))
     board.append(
       el('h2', {}, 'Leaderboard'),
       el(
         'div',
         { class: 'table-wrap' },
-        el(
-          'table',
-          { class: 'board' },
-          el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, 'Player'), el('th', { class: 'num' }, scoring.metric))),
-          el('tbody', {}, rows),
-        ),
+        el('table', { class: 'board' }, el('thead', {}, el('tr', {}, head)), el('tbody', {}, rows)),
       ),
+      session.mode === 'multi' && !showPaths && session.status === 'open'
+        ? el('p', { class: 'muted small' }, 'Routes are shown once you have had a go.')
+        : null,
     )
   }
 
