@@ -233,10 +233,10 @@ export function sessionView({ code: raw }) {
         { class: 'table-wrap' },
         el('table', { class: 'board' }, el('thead', {}, el('tr', {}, head)), el('tbody', {}, rows)),
       ),
-      session.mode === 'multi' && !showPaths && session.status === 'open'
-        ? el('p', { class: 'muted small' }, 'Routes are shown once you have had a go.')
-        : null,
     )
+    if (session.mode === 'multi' && !showPaths && session.status === 'open') {
+      board.append(el('p', { class: 'muted small' }, 'Routes are shown once you have had a go.'))
+    }
   }
 
   return view(root, () => {
