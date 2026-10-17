@@ -3,7 +3,14 @@ import { watchHistory } from '../db.js'
 import { SCORING, formatMs } from '../score.js'
 import { el, link, notice, view } from '../ui.js'
 
-const dateFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+const dateFormat = new Intl.DateTimeFormat('en-GB', {
+  day: 'numeric',
+  month: 'short',
+  year: 'numeric',
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+})
 
 export function historyView() {
   const user = currentUser()
