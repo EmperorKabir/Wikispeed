@@ -459,22 +459,9 @@ details.card summary {
 
 .daily-grid {
   display: grid;
-  grid-template-columns: minmax(7rem, 1.2fr) 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
   align-items: stretch;
-}
-
-.daily-head {
-  font-weight: 700;
-  text-align: center;
-  align-self: end;
-  padding-bottom: 0.25rem;
-}
-
-.daily-row {
-  display: grid;
-  align-content: center;
-  gap: 0.125rem;
 }
 
 .daily-cell {
@@ -482,19 +469,11 @@ details.card summary {
   align-items: start;
 }
 
-@media (max-width: 36rem) {
-  .daily-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .daily-grid > :first-child {
-    display: none;
-  }
-
-  .daily-row {
-    grid-column: 1 / -1;
-    padding-top: 0.5rem;
-  }
+.legend {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.125rem;
 }
 
 .choices.quick {

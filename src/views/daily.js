@@ -79,23 +79,33 @@ export async function dailyIndexView({ date } = {}) {
         play.disabled = false
       }
     }, { class: 'primary small-button', disabled: !isToday || !displayName() })
+    const { scoring } = slugParts(slug)
     return el(
       'div',
       { class: 'card stack-small daily-cell' },
+      el('strong', {}, `${DIFFICULTIES[tier].label} · ${SCORING[scoring].label}`),
       el('div', { class: 'row' }, play, link('Leaderboard', `/daily/${day}/${slug}`, { class: 'button secondary small-button' })),
       el('span', { class: 'muted small' }, have.has(slug) ? 'In play' : isToday ? 'Not started by anyone yet' : 'Nobody played this one'),
     )
   }
 
+  function legend() {
+    return el(
+      'section',
+      { class: 'card stack-small' },
+      el('strong', {}, 'Difficulty'),
+      el(
+        'ul',
+        { class: 'legend' },
+        Object.values(DIFFICULTIES).map((d) => el('li', {}, el('strong', {}, `${d.label}: `), d.hint)),
+      ),
+      el('span', { class: 'muted small' }, 'Four separate pools; an article belongs to one tier only. Timed ranks by fastest finish, Fewest clicks by shortest route.'),
+    )
+  }
+
   function grid() {
-    const cells = [el('div', {}, ''), el('div', { class: 'daily-head' }, 'Timed'), el('div', { class: 'daily-head' }, 'Fewest clicks')]
-    for (const tier of Object.keys(DIFFICULTIES)) {
-      cells.push(
-        el('div', { class: 'daily-row' }, el('strong', {}, DIFFICULTIES[tier].label), el('span', { class: 'muted small' }, DIFFICULTIES[tier].hint)),
-        cell(`${tier}-time`),
-        cell(`${tier}-clicks`),
-      )
-    }
+    const cells = []
+    for (const tier of Object.keys(DIFFICULTIES)) cells.push(cell(`${tier}-time`), cell(`${tier}-clicks`))
     return el('div', { class: 'daily-grid' }, cells)
   }
 
@@ -113,6 +123,7 @@ export async function dailyIndexView({ date } = {}) {
     el('h1', {}, isToday ? 'Daily challenge' : `Daily challenge, ${day}`),
     el('p', { class: 'muted' }, 'Eight fresh routes every day, each with a global leaderboard. Articles stay hidden until you press Play. Only your first attempt is ranked; you can practise afterwards.'),
     isToday ? reset.el : el('p', { class: 'muted small' }, link('Back to today', '/daily')),
+    legend(),
     gateSlot,
     error,
     gridSlot,
