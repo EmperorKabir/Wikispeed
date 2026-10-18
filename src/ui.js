@@ -20,6 +20,10 @@ export function link(label, href, attrs = {}) {
   return el('a', { href: `#${href}`, ...attrs }, label)
 }
 
+export function back(label = 'Home', href = '/') {
+  return el('p', { class: 'back' }, link(`← ${label}`, href))
+}
+
 export function notice(message, kind = 'info') {
   return el('p', { class: `notice notice-${kind}`, role: kind === 'error' ? 'alert' : 'status' }, message)
 }

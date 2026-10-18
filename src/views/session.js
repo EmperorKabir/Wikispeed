@@ -3,11 +3,11 @@ import { isValidCode, normaliseCode } from '../code.js'
 import { openSession, readRoute, watchRuns, watchSession } from '../db.js'
 import { go } from '../router.js'
 import { SCORING, attemptStatus, formatMs, playerRows } from '../score.js'
-import { button, copyText, el, link, mask, notice, view } from '../ui.js'
+import { back, button, copyText, el, mask, notice, view } from '../ui.js'
 import { titleFromKey } from '../wiki.js'
 
 function notFound() {
-  return view(el('div', { class: 'stack' }, el('p', { class: 'crumbs' }, link('Home', '/')), el('h1', {}, 'No session with that code')))
+  return view(el('div', { class: 'stack' }, back(), el('h1', {}, 'No session with that code')))
 }
 
 export function sessionView({ code: raw }) {
@@ -28,10 +28,9 @@ export function sessionView({ code: raw }) {
   const root = el(
     'div',
     { class: 'stack' },
-    el('p', { class: 'crumbs' }, link('Home', '/'), el('span', {}, 'Session')),
+    back(),
     header,
-    action,
-    error,
+    el('section', { class: 'card stack' }, action, error),
     board,
   )
 

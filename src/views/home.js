@@ -90,12 +90,13 @@ export function homeView() {
     el(
       'div',
       { class: 'choices' },
-      link('Solo', '/new/solo', { class: 'choice' }),
-      link('Multiplayer', '/multi', { class: 'choice' }),
+      link([el('strong', {}, 'Solo'), el('small', {}, 'Race on your own')], '/new/solo', { class: 'choice' }),
+      link([el('strong', {}, 'Multiplayer'), el('small', {}, 'Share a code, play together or later')], '/multi', { class: 'choice' }),
     ),
     error,
     account,
   )
+  account.classList.add('card')
 
   return view(root, stop)
 }

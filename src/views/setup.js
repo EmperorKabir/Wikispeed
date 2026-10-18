@@ -2,7 +2,7 @@ import { currentUser } from '../auth.js'
 import { createSession } from '../db.js'
 import { go } from '../router.js'
 import { SCORING } from '../score.js'
-import { button, el, link, notice, view } from '../ui.js'
+import { back, button, el, notice, view } from '../ui.js'
 import { articleUrl, randomArticle, resolveTitle, suggestTitles } from '../wiki.js'
 
 export function setupView({ mode }) {
@@ -18,7 +18,8 @@ export function setupView({ mode }) {
       'label',
       { class: 'choice' },
       el('input', { type: 'radio', name: 'scoring', value: key, checked: key === 'time' }),
-      label,
+      el('strong', {}, label),
+      el('small', {}, key === 'time' ? 'Fastest finish wins' : 'Fewest clicks wins'),
     ),
   )
 
@@ -63,8 +64,8 @@ export function setupView({ mode }) {
   const root = el(
     'div',
     { class: 'stack' },
-    el('p', { class: 'crumbs' }, link('Home', '/'), el('span', {}, mode === 'solo' ? 'Solo' : 'Multiplayer')),
-    el('h1', {}, 'New game'),
+    back(mode === 'solo' ? 'Home' : 'Multiplayer', mode === 'solo' ? '/' : '/multi'),
+    el('h1', {}, mode === 'solo' ? 'New solo game' : 'New multiplayer game'),
     el('fieldset', {}, el('legend', {}, 'Scoring'), el('div', { class: 'choices' }, scoringChoices)),
     start.el,
     finish.el,

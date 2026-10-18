@@ -32,6 +32,30 @@ export async function playView({ code }) {
   const status = el('div')
   const attemptOut = el('span', { class: 'muted small' })
 
+  const SIZES = [0.75, 0.875, 1, 1.125, 1.25, 1.4]
+  const SIZE_KEY = 'wixpert.articleSize'
+  let sizeIndex = 1
+  try {
+    const saved = Number(localStorage.getItem(SIZE_KEY))
+    if (saved >= 0 && saved < SIZES.length) sizeIndex = saved
+  } catch {
+    // storage unavailable; use the default size
+  }
+  const smaller = button('A−', () => setSize(sizeIndex - 1), { class: 'text size', 'aria-label': 'Smaller text' })
+  const larger = button('A+', () => setSize(sizeIndex + 1), { class: 'text size', 'aria-label': 'Larger text' })
+
+  function setSize(index) {
+    sizeIndex = Math.min(SIZES.length - 1, Math.max(0, index))
+    article.style.fontSize = `${SIZES[sizeIndex]}rem`
+    smaller.disabled = sizeIndex === 0
+    larger.disabled = sizeIndex === SIZES.length - 1
+    try {
+      localStorage.setItem(SIZE_KEY, String(sizeIndex))
+    } catch {
+      // storage unavailable; the size lasts for this page only
+    }
+  }
+
   const bar = el(
     'div',
     { class: 'playbar' },
@@ -41,9 +65,11 @@ export async function playView({ code }) {
       { class: 'stats' },
       attemptOut,
       el('span', { class: 'primary-stat' }, el('span', { class: 'muted small' }, timed ? 'Time ' : 'Clicks '), metricOut),
+      el('span', { class: 'sizes' }, smaller, larger),
       button('Give up', giveUp, { class: 'text' }),
     ),
   )
+  setSize(sizeIndex)
 
   const root = el(
     'div',

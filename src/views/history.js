@@ -1,7 +1,7 @@
 import { currentUser, isGoogleUser } from '../auth.js'
 import { watchHistory } from '../db.js'
 import { SCORING, formatMs } from '../score.js'
-import { el, link, notice, view } from '../ui.js'
+import { back, el, link, notice, view } from '../ui.js'
 
 const dateFormat = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
@@ -19,7 +19,7 @@ export function historyView() {
   const root = el(
     'div',
     { class: 'stack' },
-    el('p', { class: 'crumbs' }, link('Home', '/'), el('span', {}, 'History')),
+    back(),
     el('h1', {}, 'History'),
     isGoogleUser(user) ? null : el('p', { class: 'muted small' }, 'Sign in with Google on the home page to keep this on every device.'),
     list,

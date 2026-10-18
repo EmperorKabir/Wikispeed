@@ -1,4 +1,4 @@
-import { el, link, view } from '../ui.js'
+import { back, el, view } from '../ui.js'
 
 const CONTACT = 'bhasin.kabir@gmail.com'
 
@@ -7,7 +7,7 @@ function page(title, ...sections) {
     el(
       'div',
       { class: 'stack legal' },
-      el('p', { class: 'crumbs' }, link('Home', '/'), el('span', {}, title)),
+      back(),
       el('h1', {}, title),
       el('p', { class: 'muted small' }, 'Last updated 17 October 2026.'),
       ...sections,
