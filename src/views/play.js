@@ -66,7 +66,7 @@ export async function playView({ code }) {
       attemptOut,
       el('span', { class: 'primary-stat' }, el('span', { class: 'muted small' }, timed ? 'Time ' : 'Clicks '), metricOut),
       el('span', { class: 'sizes' }, smaller, larger),
-      button('Give up', () => giveUp(`/s/${code}`), { class: 'text' }),
+      button('Give up', () => giveUp(`/s/${code}`), { class: 'danger' }),
       button('Home', () => giveUp('/'), { class: 'text' }),
     ),
   )

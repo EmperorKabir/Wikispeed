@@ -220,6 +220,19 @@ button.primary,
   box-shadow: 0 8px 20px -10px var(--accent);
 }
 
+button.danger {
+  background: #e0261f;
+  border-color: #e0261f;
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 8px 20px -10px #e0261f;
+}
+
+button.danger:hover {
+  background: #f03a33;
+  border-color: #f03a33;
+}
+
 button.small-button {
   min-height: 36px;
   padding: 0.25rem 0.75rem;
