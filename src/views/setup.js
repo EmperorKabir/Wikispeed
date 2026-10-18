@@ -87,21 +87,48 @@ function picker(label, name) {
     return promise
   }
 
-  const list = el('datalist', { id: `${name}-suggestions` })
+  const suggestions = el('ul', { class: 'suggestions', hidden: true })
   const input = el('input', {
     type: 'text',
     name,
     id: `${name}-input`,
     'aria-label': label,
     autocomplete: 'off',
-    list: list.id,
     placeholder: 'Type a title',
     oninput: onInput,
     onchange: () => track(resolve(input.value)),
+    onblur: () => setTimeout(() => (suggestions.hidden = true), 150),
+    onfocus: () => {
+      if (suggestions.childElementCount && !page) suggestions.hidden = false
+    },
   })
   const status = el('p', { class: 'muted small', 'aria-live': 'polite' })
   const hide = el('input', { type: 'checkbox', name: `${name}-hide`, onchange: refresh })
   const randomButton = button('Random', () => track(onRandom()), { class: 'secondary' })
+
+  function showSuggestions(pages) {
+    suggestions.replaceChildren(
+      ...pages.map((p) =>
+        el(
+          'li',
+          {},
+          el(
+            'button',
+            { type: 'button', class: 'suggestion', onmousedown: (e) => e.preventDefault(), onclick: () => choose(p) },
+            el('span', {}, p.title),
+            p.description ? el('span', { class: 'muted small' }, ` ${p.description}`) : null,
+          ),
+        ),
+      ),
+    )
+    suggestions.hidden = pages.length === 0
+  }
+
+  function choose(p) {
+    suggestions.hidden = true
+    input.value = p.title
+    track(resolve(p.title))
+  }
 
   function onInput() {
     page = null
@@ -109,12 +136,16 @@ function picker(label, name) {
     clearTimeout(debounce)
     const q = input.value
     const mine = ++suggestSeq
+    if (q.trim().length < 2) {
+      showSuggestions([])
+      return
+    }
     debounce = setTimeout(async () => {
       try {
         const pages = await suggestTitles(q)
-        if (mine === suggestSeq) list.replaceChildren(...pages.map((p) => el('option', { value: p.title }, p.description)))
+        if (mine === suggestSeq) showSuggestions(pages)
       } catch {
-        if (mine === suggestSeq) list.replaceChildren()
+        if (mine === suggestSeq) showSuggestions([])
       }
     }, 250)
   }
@@ -128,12 +159,13 @@ function picker(label, name) {
       if (mine !== seq) return
       if (!found) {
         page = null
-        status.textContent = 'No article with that title'
+        status.textContent = 'No matching article on English Wikipedia. Try another title or Random.'
       } else if (found.type !== 'standard') {
         page = null
-        status.textContent = 'Pick a specific article, not a disambiguation page'
+        status.textContent = 'That title covers several articles. Pick one from the suggestions.'
       } else {
         page = found
+        suggestions.hidden = true
         refresh()
       }
     } catch (err) {
@@ -180,7 +212,8 @@ function picker(label, name) {
     'fieldset',
     {},
     el('legend', {}, label),
-    el('div', { class: 'row' }, input, randomButton, list),
+    el('div', { class: 'row' }, input, randomButton),
+    suggestions,
     status,
     el('label', { class: 'check' }, hide, ' Hide until the game starts'),
   )

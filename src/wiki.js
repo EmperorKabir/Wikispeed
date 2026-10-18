@@ -122,11 +122,20 @@ function pageFromSummary(summary) {
   }
 }
 
+async function lookup(key) {
+  return pageFromSummary(await getJson(`${REST}/page/summary/${encodeURIComponent(key)}`))
+}
+
 export async function resolveTitle(text) {
   const key = keyFromTitle(text)
   if (!key) return null
-  const summary = await getJson(`${REST}/page/summary/${encodeURIComponent(key)}`)
-  return pageFromSummary(summary)
+  const exact = await lookup(key)
+  if (exact && exact.type === 'standard') return exact
+  for (const candidate of await suggestTitles(text, 5)) {
+    const page = await lookup(candidate.key)
+    if (page && page.type === 'standard') return page
+  }
+  return exact
 }
 
 export async function randomArticle(tries = 6) {
