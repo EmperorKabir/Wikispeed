@@ -5,8 +5,9 @@
   --muted: #5c6670;
   --line: #d9dee3;
   --soft: #f3f5f7;
-  --accent: #1a6fd1;
-  --accent-fg: #ffffff;
+  --accent: #0b7f6e;
+  --accent-bg: #2fd3b5;
+  --accent-fg: #06231f;
   --danger: #c0392b;
   --radius: 10px;
   --gutter: clamp(16px, 4vw, 32px);
@@ -20,8 +21,9 @@
     --muted: #9aa4ae;
     --line: #333a42;
     --soft: #242a31;
-    --accent: #5aa0f2;
-    --accent-fg: #0b1220;
+    --accent: #5ee8cc;
+    --accent-bg: #4fe2c4;
+    --accent-fg: #06231f;
     --danger: #ff7b6b;
   }
 }
@@ -157,8 +159,8 @@ input[type="text"] {
 button,
 .button {
   padding: 0.6rem 1.1rem;
-  border: 1px solid var(--accent);
-  background: var(--accent);
+  border: 1px solid var(--accent-bg);
+  background: var(--accent-bg);
   color: var(--accent-fg);
   cursor: pointer;
   text-decoration: none;
@@ -175,6 +177,7 @@ button:disabled {
 
 button.secondary {
   background: transparent;
+  border-color: var(--accent);
   color: var(--accent);
 }
 
@@ -323,8 +326,8 @@ legend {
 }
 
 .choice:has(:checked) {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--accent-bg);
+  background: var(--accent-bg);
   color: var(--accent-fg);
 }
 
