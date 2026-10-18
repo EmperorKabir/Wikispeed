@@ -66,7 +66,8 @@ export async function playView({ code }) {
       attemptOut,
       el('span', { class: 'primary-stat' }, el('span', { class: 'muted small' }, timed ? 'Time ' : 'Clicks '), metricOut),
       el('span', { class: 'sizes' }, smaller, larger),
-      button('Give up', giveUp, { class: 'text' }),
+      button('Give up', () => giveUp(`/s/${code}`), { class: 'text' }),
+      button('Home', () => giveUp('/'), { class: 'text' }),
     ),
   )
   setSize(sizeIndex)
@@ -193,8 +194,11 @@ export async function playView({ code }) {
     }
   }
 
-  async function giveUp() {
-    if (finished) return
+  async function giveUp(destination) {
+    if (finished) {
+      go(destination)
+      return
+    }
     finished = true
     timer.pause()
     clearInterval(tick)
@@ -204,7 +208,7 @@ export async function playView({ code }) {
     } catch {
       // the attempt stays marked as unfinished; nothing else to do here
     }
-    go(`/s/${code}`)
+    go(destination)
   }
 
   return view(root, () => {
