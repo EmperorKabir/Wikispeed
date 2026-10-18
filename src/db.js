@@ -24,7 +24,7 @@ const roundRef = (code, n) => doc(db, 'sessions', code, 'rounds', String(n))
 const dailyRef = (date, slug) => doc(db, 'daily', date, 'challenges', slug)
 const historyRef = (uid) => collection(db, 'users', uid, 'history')
 
-export const DAILY_SLUGS = ['easy-time', 'easy-clicks', 'medium-time', 'medium-clicks', 'hard-time', 'hard-clicks', 'any-time', 'any-clicks']
+export { DAILY_SLUGS } from './db-constants.js'
 
 function arenaDoc(arena) {
   if (arena.kind === 'round') return roundRef(arena.code, arena.n)

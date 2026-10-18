@@ -123,7 +123,7 @@ export async function dailyIndexView({ date } = {}) {
     { class: 'stack' },
     back(),
     el('h1', {}, isToday ? 'Daily challenge' : `Daily challenge, ${day}`),
-    el('p', { class: 'muted' }, 'Eight fresh routes every day, each with a global leaderboard. Articles stay hidden until you press Play. Only your first attempt is ranked; you can practise afterwards.'),
+    el('p', { class: 'muted' }, 'Eight fresh routes set at midnight UTC every day, each with a global leaderboard. Articles stay hidden until you press Play. Only your first attempt is ranked; you can practise afterwards.'),
     isToday ? reset.el : el('p', { class: 'muted small' }, link('Back to today', '/daily')),
     legend(),
     gateSlot,

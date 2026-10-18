@@ -8,12 +8,14 @@
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "npm run build && firebase deploy --only hosting,firestore:rules",
-    "test": "vitest run"
+    "test": "vitest run",
+    "daily": "node scripts/daily.mjs"
   },
   "dependencies": {
     "firebase": "^13.0.0"
   },
   "devDependencies": {
+    "firebase-admin": "^14.5.0",
     "happy-dom": "^21.0.3",
     "vite": "^8.3.4",
     "vitest": "^5.0.5"
