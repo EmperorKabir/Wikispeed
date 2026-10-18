@@ -106,6 +106,7 @@ export function setupView({ mode }) {
     finish.el,
     error,
     createButton,
+    el('p', { class: 'muted or' }, 'or'),
     quickButton,
   )
 

@@ -563,6 +563,11 @@ legend {
   justify-content: space-between;
 }
 
+.or {
+  text-align: center;
+  margin-block: -0.5rem;
+}
+
 .outcome.ok {
   font-weight: 600;
 }
