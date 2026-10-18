@@ -1,10 +1,10 @@
 import { currentUser, displayName, setName } from '../auth.js'
 import { isValidCode, normaliseCode } from '../code.js'
-import { openSession, readRoute, watchRuns, watchSession } from '../db.js'
+import { joinSession, openSession, readRoute, watchPlayers, watchRuns, watchSession } from '../db.js'
 import { go } from '../router.js'
-import { SCORING, attemptStatus, formatMs, playerRows } from '../score.js'
+import { SCORING, attemptStatus, formatMs } from '../score.js'
 import { back, button, copyText, el, mask, notice, view } from '../ui.js'
-import { articleUrl, titleFromKey } from '../wiki.js'
+import { createBoard } from './board.js'
 
 function notFound() {
   return view(el('div', { class: 'stack' }, back(), el('h1', {}, 'No session with that code')))
@@ -18,11 +18,14 @@ export function sessionView({ code: raw }) {
   let session
   let runs = []
   let route = null
-  const expanded = new Set()
+  let board = null
+  let joined = false
+  let stopRuns = () => {}
+  let stopPlayers = () => {}
 
   const header = el('div', { class: 'stack' })
   const action = el('div', { class: 'stack' })
-  const board = el('div')
+  const boardSlot = el('div')
   const error = el('div')
 
   const root = el(
@@ -31,7 +34,7 @@ export function sessionView({ code: raw }) {
     back(),
     header,
     el('section', { class: 'card stack' }, action, error),
-    board,
+    boardSlot,
   )
 
   const stopSession = watchSession(
@@ -39,8 +42,25 @@ export function sessionView({ code: raw }) {
     async (data) => {
       session = data
       if (!session) {
+        stopRuns()
+        stopPlayers()
         root.replaceChildren(...notFound().el.childNodes)
         return
+      }
+      if (!board) {
+        board = createBoard(session, uid)
+        boardSlot.replaceChildren(board.el)
+        stopRuns = watchRuns(
+          code,
+          (data) => {
+            runs = data
+            board.update({ runs })
+            render()
+          },
+          () => {},
+        )
+        stopPlayers = watchPlayers(code, (players) => board.update({ players }), () => {})
+        join()
       }
       if (revealAllowed() && !route) {
         try {
@@ -54,14 +74,11 @@ export function sessionView({ code: raw }) {
     () => error.replaceChildren(notice('Could not load the session.', 'error')),
   )
 
-  const stopRuns = watchRuns(
-    code,
-    (data) => {
-      runs = data
-      if (session) render()
-    },
-    () => {},
-  )
+  function join() {
+    if (joined && !displayName()) return
+    joined = true
+    joinSession(code, uid, displayName() || 'Guest').catch(() => {})
+  }
 
   function revealAllowed() {
     if (!session) return false
@@ -78,10 +95,6 @@ export function sessionView({ code: raw }) {
     if (!hidden) return session[which]
     const started = session.status === 'open' && myAttempts().length > 0
     return started && route ? route[which] : null
-  }
-
-  function metric(run) {
-    return session.scoring === 'time' ? formatMs(run.ms) : String(run.clicks)
   }
 
   function resultText(run) {
@@ -106,7 +119,6 @@ export function sessionView({ code: raw }) {
     if (session.mode === 'multi') header.append(codeBlock())
 
     if (!action.contains(document.activeElement)) renderAction()
-    renderBoard(scoring)
   }
 
   function codeBlock() {
@@ -178,6 +190,7 @@ export function sessionView({ code: raw }) {
         playButton.disabled = false
         return
       }
+      join()
       go(`/play/${code}`)
     }, { class: 'primary', disabled: true })
     nameInput.addEventListener('input', () => {
@@ -186,94 +199,9 @@ export function sessionView({ code: raw }) {
     action.append(el('div', { class: 'row' }, nameInput, playButton))
   }
 
-  function routesVisible() {
-    if (session.mode === 'solo') return true
-    return myAttempts().some((a) => a.done || a.quit)
-  }
-
-  function routeList(path) {
-    return el(
-      'ol',
-      { class: 'path' },
-      path.map((key) => el('li', {}, el('a', { href: articleUrl(key), target: '_blank', rel: 'noopener' }, titleFromKey(key)))),
-    )
-  }
-
-  function attemptList(row, showRoutes) {
-    const items = row.attempts.map((run) => {
-      const parts = [el('strong', {}, `Attempt ${run.attempt}`), el('span', {}, resultText(run))]
-      if (run.done) {
-        parts.push(el('span', { class: 'muted small' }, session.scoring === 'time' ? `${run.clicks} ${run.clicks === 1 ? 'click' : 'clicks'}` : formatMs(run.ms)))
-      }
-      const line = el('div', { class: 'row attempt-line' }, parts)
-      if (!showRoutes || !(run.path?.length > 1)) return el('li', {}, line)
-      return el('li', {}, line, routeList(run.path))
-    })
-    return el('tr', { class: 'path-row' }, el('td', { colspan: '5' }, el('ul', { class: 'attempts' }, items)))
-  }
-
-  function shortestRoute() {
-    const finished = runs.filter((r) => r.done && r.path?.length > 1).sort((a, b) => a.clicks - b.clicks || a.ms - b.ms)
-    const best = finished[0]
-    if (!best) return null
-    return el(
-      'section',
-      { class: 'card stack-small' },
-      el('h2', {}, 'Shortest route found'),
-      el('p', { class: 'muted small' }, `${best.name}, ${best.clicks} ${best.clicks === 1 ? 'click' : 'clicks'} in ${formatMs(best.ms)}. Tap a step to read that article.`),
-      routeList(best.path),
-    )
-  }
-
-  function renderBoard(scoring) {
-    board.replaceChildren()
-    if (runs.length === 0) {
-      if (session.status !== 'lobby') board.append(el('p', { class: 'muted' }, 'No runs yet.'))
-      return
-    }
-    const showRoutes = routesVisible()
-    const rows = playerRows(runs, session.scoring).flatMap((row, i) => {
-      const open = expanded.has(row.uid)
-      const toggle = button(open ? 'Hide' : 'Attempts', () => {
-        if (open) expanded.delete(row.uid)
-        else expanded.add(row.uid)
-        renderBoard(scoring)
-      }, { class: 'text small', 'aria-expanded': String(open) })
-      const tr = el(
-        'tr',
-        { class: row.uid === uid ? 'me' : null },
-        el('td', {}, row.best.done ? String(i + 1) : ''),
-        el('td', {}, row.name),
-        el('td', { class: 'num' }, row.best.done ? metric(row.best) : attemptStatus(row.best)),
-        el('td', { class: 'num' }, String(row.attempts.length)),
-        el('td', { class: 'num' }, toggle),
-      )
-      return open ? [tr, attemptList(row, showRoutes)] : [tr]
-    })
-    board.append(
-      el('h2', {}, 'Leaderboard'),
-      el(
-        'div',
-        { class: 'table-wrap' },
-        el(
-          'table',
-          { class: 'board' },
-          el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, 'Player'), el('th', { class: 'num' }, `Best ${scoring.metric.toLowerCase()}`), el('th', { class: 'num' }, 'Tries'), el('th', {}, ''))),
-          el('tbody', {}, rows),
-        ),
-      ),
-    )
-    if (session.mode === 'multi' && !showRoutes && session.status === 'open') {
-      board.append(el('p', { class: 'muted small' }, 'Routes are shown once you have had a go.'))
-    }
-    if (showRoutes) {
-      const best = shortestRoute()
-      if (best) board.append(best)
-    }
-  }
-
   return view(root, () => {
     stopSession()
     stopRuns()
+    stopPlayers()
   })
 }

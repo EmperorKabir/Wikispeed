@@ -21,6 +21,15 @@ const routeRef = (code) => doc(db, 'sessions', code, 'private', 'route')
 const runsRef = (code) => collection(db, 'sessions', code, 'runs')
 const runRef = (code, id) => doc(db, 'sessions', code, 'runs', id)
 const historyRef = (uid) => collection(db, 'users', uid, 'history')
+const playersRef = (code) => collection(db, 'sessions', code, 'players')
+
+export async function joinSession(code, uid, name) {
+  await setDoc(doc(playersRef(code), uid), { name, joinedAt: serverTimestamp() }, { merge: true })
+}
+
+export function watchPlayers(code, onChange, onError) {
+  return onSnapshot(playersRef(code), (snap) => onChange(snap.docs.map((d) => ({ id: d.id, ...d.data() }))), onError)
+}
 
 function normaliseRun(snap) {
   const data = snap.data()

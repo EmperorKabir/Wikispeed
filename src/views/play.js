@@ -1,10 +1,11 @@
 import { currentUser, displayName } from '../auth.js'
-import { getSession, readRoute, recordRun, startRun } from '../db.js'
+import { getSession, readRoute, recordRun, startRun, watchPlayers, watchRuns } from '../db.js'
 import { go } from '../router.js'
 import { formatMs, playerRows } from '../score.js'
 import { createTimer } from '../timer.js'
 import { button, el, link, notice, view } from '../ui.js'
 import { articleUrl, fetchArticle, loadWikiStyles } from '../wiki.js'
+import { createBoard } from './board.js'
 
 export async function playView({ code }) {
   const user = currentUser()
@@ -23,6 +24,7 @@ export async function playView({ code }) {
   let finished = false
   let currentKey = route.start.key
   let tick = null
+  let stopBoard = () => {}
 
   const metricOut = el('span', { class: 'stat' }, timed ? '0:00.0' : '0')
   const titleOut = el('span', { class: 'article-title' })
@@ -182,9 +184,21 @@ export async function playView({ code }) {
     status.replaceChildren(el('p', { class: 'muted', role: 'status' }, 'Saving'))
     try {
       await record(true)
+      const board = createBoard(session, user.uid)
+      const stopRuns = watchRuns(code, (runs) => board.update({ runs }), () => {})
+      const stopPlayers = watchPlayers(code, (players) => board.update({ players }), () => {})
+      stopBoard = () => {
+        stopRuns()
+        stopPlayers()
+      }
       status.replaceChildren(
-        el('p', { class: 'done', role: 'status' }, `Done: ${result()}.`),
-        el('p', { class: 'row' }, link('See results', `/s/${code}`, { class: 'button primary' })),
+        el(
+          'section',
+          { class: 'card stack' },
+          el('p', { class: 'done', role: 'status' }, `Done: ${result()}.`),
+          el('p', { class: 'row' }, link('Session page', `/s/${code}`, { class: 'button primary' }), link('Home', '/', { class: 'button secondary' })),
+          board.el,
+        ),
       )
     } catch (err) {
       status.replaceChildren(
@@ -214,6 +228,7 @@ export async function playView({ code }) {
   return view(root, () => {
     finished = true
     clearInterval(tick)
+    stopBoard()
     unloadStyles()
   })
 }

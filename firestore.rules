@@ -88,6 +88,18 @@ service cloud.firestore {
         allow update, delete: if false;
       }
 
+      match /players/{uid} {
+        allow read: if signedIn();
+        allow create, update: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['name', 'joinedAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() >= 1
+          && request.resource.data.name.size() <= 32
+          && request.resource.data.joinedAt == request.time;
+        allow delete: if false;
+      }
+
       match /runs/{runId} {
         allow read: if signedIn();
         allow create: if signedIn()
