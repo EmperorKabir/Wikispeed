@@ -23,7 +23,7 @@ export function isLive(run, now = Date.now()) {
   return last > 0 && now - last < STALE_MS
 }
 
-export function createBoard(session, uid, { title = 'Leaderboard' } = {}) {
+export function createBoard(session, uid, { title = 'Leaderboard', firstOnly = false } = {}) {
   const root = el('div', { class: 'stack' })
   const expanded = new Set()
   const scoring = SCORING[session.scoring] ?? SCORING.time
@@ -70,7 +70,9 @@ export function createBoard(session, uid, { title = 'Leaderboard' } = {}) {
 
   function attemptList(row, showRoutes) {
     const items = row.attempts.map((run) => {
-      const parts = [el('strong', {}, `Attempt ${run.attempt}`), run.done ? el('span', {}, resultText(run)) : liveCell(run)]
+      const heading = firstOnly && run.attempt > 1 ? `Practice ${run.attempt - 1}` : `Attempt ${run.attempt}`
+      const parts = [el('strong', {}, heading), run.done ? el('span', {}, resultText(run)) : liveCell(run)]
+      if (firstOnly && run.attempt > 1) parts.push(el('span', { class: 'muted small' }, 'not ranked'))
       if (run.done) {
         parts.push(el('span', { class: 'muted small' }, timed ? `${run.clicks} ${run.clicks === 1 ? 'click' : 'clicks'}` : formatMs(run.ms)))
       }
@@ -102,7 +104,7 @@ export function createBoard(session, uid, { title = 'Leaderboard' } = {}) {
 
   function render() {
     root.replaceChildren()
-    const rows = playerRows(runs, session.scoring)
+    const rows = playerRows(runs, session.scoring, { firstOnly })
     const waiting = players.filter((p) => !rows.some((r) => r.uid === p.id))
     if (rows.length === 0 && waiting.length === 0) {
       if (session.status !== 'lobby') root.append(el('p', { class: 'muted' }, 'No runs yet.'))
@@ -153,11 +155,12 @@ export function createBoard(session, uid, { title = 'Leaderboard' } = {}) {
         el(
           'table',
           { class: 'board' },
-          el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, 'Player'), el('th', { class: 'num' }, `Best ${scoring.metric.toLowerCase()}`), el('th', { class: 'num' }, 'Tries'), el('th', {}, ''))),
+          el('thead', {}, el('tr', {}, el('th', {}, '#'), el('th', {}, 'Player'), el('th', { class: 'num' }, firstOnly ? `First ${scoring.metric.toLowerCase()}` : `Best ${scoring.metric.toLowerCase()}`), el('th', { class: 'num' }, 'Tries'), el('th', {}, ''))),
           el('tbody', {}, trs),
         ),
       ),
     )
+    if (firstOnly) root.append(el('p', { class: 'muted small' }, 'Only each player’s first attempt is ranked. Later tries are practice and are listed but not scored.'))
     if (session.mode === 'multi' && !showRoutes && session.status !== 'lobby') {
       root.append(el('p', { class: 'muted small' }, 'Routes are shown once you have had a go.'))
     }

@@ -183,7 +183,7 @@ export async function playView(params) {
     go(backPath)
     return view(el('div'))
   }
-  if (run.attempt > 1) attemptOut.textContent = `Attempt ${run.attempt}`
+  if (run.attempt > 1) attemptOut.textContent = arena.kind === 'daily' ? `Practice ${run.attempt - 1}, not ranked` : `Attempt ${run.attempt}`
 
   const unloadStyles = loadWikiStyles()
   timer.start()
@@ -259,7 +259,7 @@ export async function playView(params) {
   function record(done) {
     const ms = Math.round(timer.elapsed())
     const current = { uid: user.uid, attempt: run.attempt, name, clicks, ms, done, quit: !done }
-    const best = playerRows([...run.previous, current], scoring)[0].best
+    const best = playerRows([...run.previous, current], scoring, { firstOnly: arena.kind === 'daily' })[0].best
     return recordRun(
       arena,
       run.id,
@@ -289,7 +289,7 @@ export async function playView(params) {
     status.replaceChildren(el('p', { class: 'muted', role: 'status' }, 'Saving'))
     try {
       await record(true)
-      const board = createBoard({ ...ctx.board, mode: ctx.mode === 'solo' ? 'solo' : 'multi' }, user.uid)
+      const board = createBoard({ ...ctx.board, mode: ctx.mode === 'solo' ? 'solo' : 'multi' }, user.uid, { firstOnly: arena.kind === 'daily' })
       const stopRuns = watchRuns(arena, (runs) => board.update({ runs }), () => {})
       const stopPlayers = arena.kind === 'daily' ? () => {} : watchPlayers(arena.code, (players) => board.update({ players }), () => {})
       stopBoard = () => {

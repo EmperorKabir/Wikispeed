@@ -17,7 +17,7 @@ export function orderRuns(runs, scoring) {
   })
 }
 
-export function playerRows(runs, scoring) {
+export function playerRows(runs, scoring, { firstOnly = false } = {}) {
   const compare = comparator(scoring)
   const byPlayer = new Map()
   for (const run of runs) {
@@ -29,7 +29,7 @@ export function playerRows(runs, scoring) {
   for (const [uid, attempts] of byPlayer) {
     attempts.sort((a, b) => a.attempt - b.attempt)
     const finished = attempts.filter((a) => a.done).sort(compare)
-    const best = finished[0] ?? attempts[attempts.length - 1]
+    const best = firstOnly ? attempts[0] : (finished[0] ?? attempts[attempts.length - 1])
     rows.push({ uid, name: best.name, attempts, best, finished: finished.length })
   }
   const ordered = orderRuns(rows.map((r) => r.best), scoring)

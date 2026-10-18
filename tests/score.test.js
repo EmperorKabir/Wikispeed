@@ -56,6 +56,13 @@ describe('playerRows', () => {
     expect(old.attempts[0].attempt).toBe(1)
     expect(old.best.ms).toBe(40000)
   })
+  it('can rank by the first attempt only, ignoring later practice', () => {
+    const rows = playerRows(attempts, 'clicks', { firstOnly: true })
+    const pat = rows.find((r) => r.uid === 'p1')
+    expect(pat.best.attempt).toBe(1)
+    expect(pat.best.done).toBe(false)
+    expect(rows[0].uid).toBe('p2')
+  })
   it('lists players with no finished attempt last, using their latest attempt', () => {
     const rows = playerRows(attempts, 'time')
     expect(rows[2].uid).toBe('p3')

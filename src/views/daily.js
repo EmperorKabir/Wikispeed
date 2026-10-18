@@ -105,7 +105,7 @@ export async function dailyIndexView({ date } = {}) {
     { class: 'stack' },
     back(),
     el('h1', {}, isToday ? 'Daily challenge' : `Daily challenge, ${day}`),
-    el('p', { class: 'muted' }, 'Eight fresh routes every day, one global board each. Articles stay hidden until you press Play. Every attempt counts; your best is ranked.'),
+    el('p', { class: 'muted' }, 'Eight fresh routes every day, one global board each. Articles stay hidden until you press Play. Only your first attempt is ranked; you can practise afterwards.'),
     isToday ? reset.el : el('p', { class: 'muted small' }, link('Back to today', '/daily')),
     gate,
     error,
@@ -129,7 +129,7 @@ export async function dailyChallengeView({ date, slug }) {
   const header = el('div', { class: 'stack' })
   const action = el('div', { class: 'stack' })
   const error = el('div')
-  const board = createBoard({ mode: 'multi', status: 'open', scoring }, uid, { title: 'Global leaderboard' })
+  const board = createBoard({ mode: 'multi', status: 'open', scoring }, uid, { title: 'Global leaderboard', firstOnly: true })
   const root = el(
     'div',
     { class: 'stack' },
@@ -191,7 +191,10 @@ export async function dailyChallengeView({ date, slug }) {
       action.append(nameGate(render))
       return
     }
-    action.append(button(latest ? 'Play again' : 'Play', () => go(playPath(arena)), { class: 'primary' }))
+    if (latest) {
+      action.append(el('p', { class: 'muted small' }, 'Your first attempt is the one on the board. You can practise this route again; practice runs are listed under your name but not ranked.'))
+    }
+    action.append(button(latest ? 'Practise again (not ranked)' : 'Play', () => go(playPath(arena)), { class: latest ? 'secondary' : 'primary' }))
   }
 
   render()

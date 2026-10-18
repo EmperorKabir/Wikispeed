@@ -79,7 +79,7 @@ export function historyView() {
         slot.replaceChildren(el('p', { class: 'muted small' }, 'This game no longer exists.'))
         return
       }
-      const board = createBoard(ctx.session, user.uid)
+      const board = createBoard(ctx.session, user.uid, { firstOnly: arena.kind === 'daily' })
       const stopRuns = watchRuns(arena, (runs) => board.update({ runs }), () => {})
       const stopPlayers = ctx.players ? watchPlayers(arena.code, (players) => board.update({ players }), () => {}) : () => {}
       open.set(e.id, {
@@ -145,7 +145,7 @@ export function historyView() {
           'span',
           { class: 'row' },
           toggle,
-          replayable ? button('Play again', () => go(playPath(arena)), { class: 'secondary small-button' }) : null,
+          replayable ? button(arena.kind === 'daily' ? 'Practise' : 'Play again', () => go(playPath(arena)), { class: 'secondary small-button' }) : null,
         ),
       ),
       slot,
