@@ -133,7 +133,8 @@ export function roomView(code, initial) {
   }
 
   function renderSettings() {
-    if (settings.contains(document.activeElement)) return
+    if (room.status === 'setup' && settings.dataset.status === 'setup' && settings.contains(document.activeElement)) return
+    settings.dataset.status = room.status
     settings.replaceChildren()
     const name = displayName()
     if (!name) {
