@@ -75,3 +75,11 @@ Nothing the user listed is excluded. Not built because not requested: other-lang
 - Give up is recorded (`quit`) and listed as "gave up"; abandoned attempts show as "unfinished".
 - Template styles inside articles are kept so pages look like Wikipedia; Wikipedia's own stylesheet modules are loaded on the play page. Red links and edit links are inert.
 - Privacy and Terms pages exist at `#/privacy` and `#/terms`.
+
+## Changes on 18 October 2026
+- Multiplayer is room-first: Create a room gives a code at once; the host configures rounds (1 to 10), per-round scoring, the overall system (podium points, most rounds won, fewest clicks in total, fastest time in total, none), who chooses each round (host, take turns in join order, previous winner, previous loser, current leader, current last), whether the chooser also picks the scoring, split choosing (start and finish by different players), and how rounds start (play whenever, or start together with a six-second countdown). Rounds close automatically when every joined player has finished or given up; the host can close early; anyone can close a round after 24 hours. Join order is fixed at first entry.
+- Live progress: each click writes clicks, current article and accumulated loading time; viewers tick the elapsed clock locally.
+- Daily challenge: eight challenges per UTC day (Easy, Medium, Hard, Anything by Timed and Fewest clicks), created by the first visitor in a transaction, articles hidden until Play, one global leaderboard each ranked by first attempt only; later attempts are practice. A countdown to the UTC reset is shown in local time.
+- Random tiers are four disjoint pools: Easy (vital levels 1 to 3, weighted), Medium (level 4 only), Hard (level 5 only), Anything (never a vital article). Descriptions state this.
+- The finish article is prefetched when a run starts; slow Wikipedia responses show a message; 429 responses pause and retry once.
+- Article pickers are shared (src/views/picker.js); the secret option appears only for random picks.
