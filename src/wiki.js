@@ -102,8 +102,12 @@ function safeDecode(value) {
   }
 }
 
+const inBrowser = typeof window !== 'undefined'
+
 function headers() {
-  return { 'Api-User-Agent': WIKI_UA, Accept: 'application/json' }
+  const base = { 'Api-User-Agent': WIKI_UA, Accept: 'application/json' }
+  if (!inBrowser) base['User-Agent'] = WIKI_UA
+  return base
 }
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
@@ -302,7 +306,7 @@ const prefetched = new Map()
 
 async function downloadArticle(key) {
   const response = await fetchWithTimeout(`${CORE}/page/${encodeURIComponent(key)}/html`, {
-    headers: { 'Api-User-Agent': WIKI_UA },
+    headers: inBrowser ? { 'Api-User-Agent': WIKI_UA } : { 'Api-User-Agent': WIKI_UA, 'User-Agent': WIKI_UA },
   }, 45000)
   if (response.status === 404) throw new Error('That article does not exist')
   if (!response.ok) throw new Error(`Wikipedia responded ${response.status}`)

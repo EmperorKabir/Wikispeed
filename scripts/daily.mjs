@@ -13,11 +13,26 @@ initializeApp({ credential: cert(JSON.parse(credentials)) })
 const db = getFirestore()
 
 const dayKey = (offsetDays) => new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10)
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+async function pick(tier) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const page = await randomArticle(tier)
+      await pause(1500)
+      return page
+    } catch (error) {
+      if (attempt >= 4) throw error
+      console.log(`  retrying ${tier} after: ${error.message}`)
+      await pause(15000 * attempt)
+    }
+  }
+}
 
 async function makeRoute(tier) {
-  const first = await randomArticle(tier)
-  let second = await randomArticle(tier)
-  for (let i = 0; i < 3 && second.key === first.key; i++) second = await randomArticle(tier)
+  const first = await pick(tier)
+  let second = await pick(tier)
+  for (let i = 0; i < 3 && second.key === first.key; i++) second = await pick(tier)
   return { start: { key: first.key, title: first.title }, target: { key: second.key, title: second.title } }
 }
 
