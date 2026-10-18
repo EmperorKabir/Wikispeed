@@ -4,7 +4,7 @@ import { joinSession, openSession, readRoute, watchPlayers, watchRuns, watchSess
 import { go } from '../router.js'
 import { SCORING, attemptStatus, formatMs } from '../score.js'
 import { back, button, copyText, el, mask, notice, view } from '../ui.js'
-import { DIFFICULTIES } from '../wiki.js'
+import { describeDifficulty } from '../wiki.js'
 import { createBoard } from './board.js'
 
 function notFound() {
@@ -107,15 +107,16 @@ export function sessionView({ code: raw }) {
     const scoring = SCORING[session.scoring] ?? SCORING.time
     const kind = session.mode === 'solo' ? 'Solo' : 'Multiplayer'
 
-    const level = DIFFICULTIES[session.difficulty]?.label
+    const level = describeDifficulty(session.difficulty)
     header.replaceChildren(
-      el('h1', {}, `${kind} · ${scoring.label}${level ? ` · ${level}` : ''}`),
+      el('h1', {}, `${kind} · ${scoring.label}`),
       el(
         'p',
         { class: 'route' },
         mask(session.hideStart, visiblePage('start')),
         el('span', { class: 'arrow', role: 'img', 'aria-label': 'to' }, '→'),
         mask(session.hideTarget, visiblePage('target')),
+        level ? el('span', { class: 'muted small' }, `Random: ${level}`) : null,
       ),
     )
     if (session.mode === 'multi') header.append(codeBlock())

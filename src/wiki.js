@@ -157,6 +157,14 @@ export const DIFFICULTIES = {
   any: { level: 0, label: 'Anything', hint: 'Any article at all' },
 }
 
+export function describeDifficulty(value) {
+  const name = (tier) => DIFFICULTIES[tier]?.label ?? 'Chosen'
+  if (typeof value === 'string') return DIFFICULTIES[value] ? `${name(value)} → ${name(value)}` : ''
+  if (!value || typeof value !== 'object') return ''
+  if (!DIFFICULTIES[value.start] && !DIFFICULTIES[value.target]) return ''
+  return `${name(value.start)} → ${name(value.target)}`
+}
+
 const VITAL_TOPICS = [
   'Arts',
   'Biology and health sciences',

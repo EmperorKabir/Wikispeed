@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   DIFFICULTIES,
   articleFromTalk,
+  describeDifficulty,
   isArticleKey,
   keyFromHref,
   keyFromUrl,
@@ -17,6 +18,13 @@ describe('difficulty tiers', () => {
     expect(DIFFICULTIES.medium.level).toBe(4)
     expect(DIFFICULTIES.hard.level).toBe(5)
     expect(DIFFICULTIES.any.level).toBe(0)
+  })
+  it('describes per-article tiers, legacy strings and typed picks', () => {
+    expect(describeDifficulty({ start: 'easy', target: 'hard' })).toBe('Easy → Hard')
+    expect(describeDifficulty({ start: 'typed', target: 'any' })).toBe('Chosen → Anything')
+    expect(describeDifficulty({ start: 'typed', target: 'typed' })).toBe('')
+    expect(describeDifficulty('medium')).toBe('Medium → Medium')
+    expect(describeDifficulty(undefined)).toBe('')
   })
   it('builds the category name and strips the talk prefix', () => {
     expect(vitalCategory(4, 'People')).toBe('Category:Wikipedia level-4 vital articles in People')

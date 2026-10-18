@@ -7,6 +7,12 @@ import { button, el, link, notice, view } from '../ui.js'
 import { articleUrl, fetchArticle, loadWikiStyles } from '../wiki.js'
 import { createBoard } from './board.js'
 
+function normaliseDifficulty(value) {
+  if (value && typeof value === 'object') return { start: value.start ?? 'typed', target: value.target ?? 'typed' }
+  if (typeof value === 'string') return { start: value, target: value }
+  return { start: 'typed', target: 'typed' }
+}
+
 export async function playView({ code }) {
   const user = currentUser()
   const name = displayName(user)
@@ -166,7 +172,7 @@ export async function playView({ code }) {
       {
         mode: session.mode,
         scoring: session.scoring,
-        difficulty: session.difficulty ?? 'any',
+        difficulty: normaliseDifficulty(session.difficulty),
         start: route.start.title,
         target: route.target.title,
         clicks: best.clicks,

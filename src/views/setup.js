@@ -23,35 +23,30 @@ export function setupView({ mode }) {
     ),
   )
 
-  const difficultyChoices = Object.entries(DIFFICULTIES).map(([key, { label, hint }]) =>
-    el(
-      'label',
-      { class: 'choice compact' },
-      el('input', { type: 'radio', name: 'difficulty', value: key, checked: key === 'medium' }),
-      el('strong', {}, label),
-      el('small', {}, hint),
-    ),
-  )
-
   function scoring() {
     return root.querySelector('input[name="scoring"]:checked').value
   }
 
-  function difficulty() {
-    return root.querySelector('input[name="difficulty"]:checked').value
-  }
-
-  const start = picker('Start article', 'start', difficulty)
-  const finish = picker('Finish article', 'finish', difficulty)
+  const start = picker('Start article', 'start', updateQuickLabel)
+  const finish = picker('Finish article', 'finish', updateQuickLabel)
 
   const createButton = button('Create', onCreate, { class: 'primary' })
-  const quickButton = button("Single Click: Fully random, let's go!", onQuick, { class: 'primary' })
+  const quickButton = button('', onQuick, { class: 'primary' })
+
+  function quickTiers() {
+    return [start.lastTier() ?? 'medium', finish.lastTier() ?? 'medium']
+  }
+
+  function updateQuickLabel() {
+    const [a, b] = quickTiers()
+    quickButton.textContent = `Single Click: Fully random (${DIFFICULTIES[a].label} → ${DIFFICULTIES[b].label}), let's go!`
+  }
 
   async function twoRandomArticles() {
-    const level = difficulty()
-    const first = await randomArticle(level)
-    let second = await randomArticle(level)
-    for (let i = 0; i < 3 && second.key === first.key; i++) second = await randomArticle(level)
+    const [a, b] = quickTiers()
+    const first = await randomArticle(a)
+    let second = await randomArticle(b)
+    for (let i = 0; i < 3 && second.key === first.key; i++) second = await randomArticle(b)
     return [first, second]
   }
 
@@ -61,11 +56,12 @@ export function setupView({ mode }) {
     createButton.disabled = true
     try {
       const [from, to] = await twoRandomArticles()
+      const [a, b] = quickTiers()
       const code = await createSession({
         uid: currentUser().uid,
         mode,
         scoring: scoring(),
-        difficulty: difficulty(),
+        difficulty: { start: a, target: b },
         start: { key: from.key, title: from.title },
         target: { key: to.key, title: to.title },
         hideStart: start.hidden(),
@@ -100,7 +96,7 @@ export function setupView({ mode }) {
         uid: currentUser().uid,
         mode,
         scoring: scoring(),
-        difficulty: difficulty(),
+        difficulty: { start: start.tier(), target: finish.tier() },
         start: { key: from.key, title: from.title },
         target: { key: to.key, title: to.title },
         hideStart: start.hidden(),
@@ -119,7 +115,6 @@ export function setupView({ mode }) {
     back(mode === 'solo' ? 'Home' : 'Multiplayer', mode === 'solo' ? '/' : '/multi'),
     el('h1', {}, mode === 'solo' ? 'New solo game' : 'New multiplayer game'),
     el('fieldset', {}, el('legend', {}, 'Scoring'), el('div', { class: 'choices' }, scoringChoices)),
-    el('fieldset', {}, el('legend', {}, 'Random article difficulty'), el('div', { class: 'choices four' }, difficultyChoices)),
     start.el,
     finish.el,
     error,
@@ -127,12 +122,15 @@ export function setupView({ mode }) {
     el('p', { class: 'muted or' }, 'or'),
     quickButton,
   )
+  updateQuickLabel()
 
   return view(root)
 }
 
-function picker(label, name, difficulty) {
+function picker(label, name, onTierChange) {
   let page = null
+  let tier = 'typed'
+  let lastTier = null
   let debounce = null
   let seq = 0
   let suggestSeq = 0
@@ -160,7 +158,14 @@ function picker(label, name, difficulty) {
   })
   const status = el('p', { class: 'muted small', 'aria-live': 'polite' })
   const hide = el('input', { type: 'checkbox', name: `${name}-hide`, onchange: refresh })
-  const randomButton = button('Random', () => track(onRandom()), { class: 'secondary' })
+
+  const tierButtons = Object.entries(DIFFICULTIES).map(([key, { label: tierLabel, hint }]) =>
+    button(tierLabel, () => track(onRandom(key)), { class: 'tier', title: hint, 'aria-pressed': 'false', dataset: { tier: key } }),
+  )
+
+  function markTier(key) {
+    for (const b of tierButtons) b.setAttribute('aria-pressed', String(b.dataset.tier === key))
+  }
 
   function showSuggestions(pages) {
     suggestions.replaceChildren(
@@ -215,12 +220,14 @@ function picker(label, name, difficulty) {
       if (mine !== seq) return
       if (!found) {
         page = null
-        status.textContent = 'No matching article on English Wikipedia. Try another title or Random.'
+        status.textContent = 'No matching article on English Wikipedia. Try another title or a random tier.'
       } else if (found.type !== 'standard') {
         page = null
         status.textContent = 'That title covers several articles. Pick one from the suggestions.'
       } else {
         page = found
+        tier = 'typed'
+        markTier(null)
         suggestions.hidden = true
         refresh()
       }
@@ -229,19 +236,23 @@ function picker(label, name, difficulty) {
     }
   }
 
-  async function onRandom() {
+  async function onRandom(key) {
     const mine = ++seq
-    randomButton.disabled = true
+    for (const b of tierButtons) b.disabled = true
     status.textContent = 'Picking'
     try {
-      const found = await randomArticle(difficulty())
+      const found = await randomArticle(key)
       if (mine !== seq) return
       page = found
+      tier = key
+      lastTier = key
+      markTier(key)
+      onTierChange()
       refresh()
     } catch (err) {
       if (mine === seq) status.textContent = err.message
     } finally {
-      randomButton.disabled = false
+      for (const b of tierButtons) b.disabled = false
     }
   }
 
@@ -268,8 +279,9 @@ function picker(label, name, difficulty) {
     'fieldset',
     {},
     el('legend', {}, label),
-    el('div', { class: 'row' }, input, randomButton),
+    input,
     suggestions,
+    el('div', { class: 'row tiers' }, el('span', { class: 'muted small' }, 'Random:'), ...tierButtons),
     status,
     el('label', { class: 'check' }, hide, ' Hide until the game starts'),
   )
@@ -278,6 +290,8 @@ function picker(label, name, difficulty) {
     el: root,
     value: () => page,
     hidden: () => hide.checked,
+    tier: () => tier,
+    lastTier: () => lastTier,
     settled: () => pending,
   }
 }

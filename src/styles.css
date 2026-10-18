@@ -352,14 +352,23 @@ legend {
   cursor: pointer;
 }
 
-.choices.four {
-  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+.tiers {
+  gap: 0.5rem;
 }
 
-.choice.compact {
-  min-height: 4rem;
-  padding: 0.75rem 0.5rem;
-  font-size: 1rem;
+button.tier {
+  min-height: 36px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.9375rem;
+  background: transparent;
+  border-color: var(--line);
+  color: inherit;
+}
+
+button.tier[aria-pressed="true"] {
+  background: var(--accent-bg);
+  border-color: var(--accent-bg);
+  color: var(--accent-fg);
 }
 
 .choice small {

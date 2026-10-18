@@ -3,7 +3,7 @@ import { watchHistory } from '../db.js'
 import { SCORING, formatMs } from '../score.js'
 import { go } from '../router.js'
 import { back, button, el, link, notice, view } from '../ui.js'
-import { DIFFICULTIES } from '../wiki.js'
+import { describeDifficulty } from '../wiki.js'
 
 const dateFormat = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
@@ -58,7 +58,7 @@ export function historyView() {
           el(
             'span',
             { class: 'muted small' },
-            `${e.mode === 'solo' ? 'Solo' : 'Multiplayer'} · ${SCORING[e.scoring]?.label ?? ''}${DIFFICULTIES[e.difficulty] ? ` · ${DIFFICULTIES[e.difficulty].label}` : ''}${e.attempts > 1 ? ` · ${e.attempts} attempts` : ''}`,
+            `${e.mode === 'solo' ? 'Solo' : 'Multiplayer'} · ${SCORING[e.scoring]?.label ?? ''}${describeDifficulty(e.difficulty) ? ` · ${describeDifficulty(e.difficulty)}` : ''}${e.attempts > 1 ? ` · ${e.attempts} attempts` : ''}`,
           ),
         ),
         button('Play again', () => go(`/play/${e.code}`), { class: 'secondary small-button' }),
