@@ -27,7 +27,7 @@ export function setupView({ mode }) {
   const finish = picker('Finish article', 'finish')
 
   const createButton = button('Create', onCreate, { class: 'primary' })
-  const quickButton = button("Single Click: Fully random, let's go!", onQuick, { class: 'secondary' })
+  const quickButton = button("Single Click: Fully random, let's go!", onQuick, { class: 'primary' })
 
   function scoring() {
     return root.querySelector('input[name="scoring"]:checked').value
