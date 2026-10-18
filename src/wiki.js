@@ -165,7 +165,7 @@ async function searchPages(kind, q, limit) {
   }))
 }
 
-export async function suggestTitles(query, limit = 6) {
+export async function suggestTitles(query, limit = 20) {
   const q = String(query).trim()
   if (q.length < 2) return []
   const [byTitle, byText] = await Promise.all([searchPages('title', q, limit), searchPages('page', q, limit)])
