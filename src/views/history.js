@@ -1,9 +1,10 @@
 import { currentUser, isGoogleUser } from '../auth.js'
-import { watchHistory } from '../db.js'
-import { SCORING, formatMs } from '../score.js'
+import { getSession, watchHistory, watchPlayers, watchRuns } from '../db.js'
 import { go } from '../router.js'
+import { SCORING, formatMs } from '../score.js'
 import { back, button, el, link, notice, view } from '../ui.js'
 import { describeDifficulty } from '../wiki.js'
+import { createBoard } from './board.js'
 
 const dateFormat = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
@@ -17,6 +18,7 @@ const dateFormat = new Intl.DateTimeFormat('en-GB', {
 export function historyView() {
   const user = currentUser()
   const list = el('div', {}, el('p', { class: 'muted', role: 'status' }, 'Loading'))
+  const open = new Map()
 
   const root = el(
     'div',
@@ -40,10 +42,62 @@ export function historyView() {
     () => list.replaceChildren(notice('Could not load history.', 'error')),
   )
 
+  function closeBoard(code) {
+    const entry = open.get(code)
+    if (!entry) return
+    entry.stop()
+    entry.slot.replaceChildren()
+    open.delete(code)
+  }
+
+  async function openBoard(code, slot, toggle) {
+    toggle.disabled = true
+    try {
+      const session = await getSession(code)
+      if (!session) {
+        slot.replaceChildren(el('p', { class: 'muted small' }, 'This session no longer exists.'))
+        return
+      }
+      const board = createBoard(session, user.uid)
+      const stopRuns = watchRuns(code, (runs) => board.update({ runs }), () => {})
+      const stopPlayers = watchPlayers(code, (players) => board.update({ players }), () => {})
+      open.set(code, {
+        slot,
+        stop: () => {
+          stopRuns()
+          stopPlayers()
+        },
+      })
+      slot.replaceChildren(el('div', { class: 'card' }, board.el))
+    } catch (err) {
+      slot.replaceChildren(notice(`Could not load the leaderboard: ${err.message}`, 'error'))
+    } finally {
+      toggle.disabled = false
+    }
+  }
+
   function row(e) {
     const timed = e.scoring === 'time'
     const when = e.at?.toDate ? dateFormat.format(e.at.toDate()) : ''
     const result = timed ? formatMs(e.ms ?? 0) : `${e.clicks ?? 0} ${e.clicks === 1 ? 'click' : 'clicks'}`
+    const slot = el('div', { class: 'board-slot' })
+    const isOpen = open.has(e.code)
+    const toggle = button(isOpen ? 'Hide leaderboard' : 'Leaderboard', async () => {
+      if (open.has(e.code)) {
+        closeBoard(e.code)
+        toggle.textContent = 'Leaderboard'
+        toggle.setAttribute('aria-expanded', 'false')
+        return
+      }
+      toggle.textContent = 'Hide leaderboard'
+      toggle.setAttribute('aria-expanded', 'true')
+      await openBoard(e.code, slot, toggle)
+    }, { class: 'text small-button', 'aria-expanded': String(isOpen) })
+    if (isOpen) {
+      const entry = open.get(e.code)
+      entry.slot = slot
+      slot.replaceChildren(...entry.slot.childNodes)
+    }
     return el(
       'li',
       {},
@@ -61,10 +115,14 @@ export function historyView() {
             `${e.mode === 'solo' ? 'Solo' : 'Multiplayer'} · ${SCORING[e.scoring]?.label ?? ''}${describeDifficulty(e.difficulty) ? ` · ${describeDifficulty(e.difficulty)}` : ''}${e.attempts > 1 ? ` · ${e.attempts} attempts` : ''}`,
           ),
         ),
-        button('Play again', () => go(`/play/${e.code}`), { class: 'secondary small-button' }),
+        el('span', { class: 'row' }, toggle, button('Play again', () => go(`/play/${e.code}`), { class: 'secondary small-button' })),
       ),
+      slot,
     )
   }
 
-  return view(root, stop)
+  return view(root, () => {
+    stop()
+    for (const code of [...open.keys()]) closeBoard(code)
+  })
 }

@@ -564,6 +564,10 @@ button.tier[aria-pressed="true"] {
   gap: 0.125rem;
 }
 
+.board-slot:not(:empty) {
+  margin-top: 0.5rem;
+}
+
 .app-main:has(.play) {
   max-width: 68rem;
 }
