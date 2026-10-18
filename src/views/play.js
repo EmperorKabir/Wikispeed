@@ -4,7 +4,7 @@ import { go } from '../router.js'
 import { formatMs, playerRows } from '../score.js'
 import { createTimer } from '../timer.js'
 import { button, el, link, notice, view } from '../ui.js'
-import { articleUrl, fetchArticle, loadWikiStyles } from '../wiki.js'
+import { articleUrl, fetchArticle, loadWikiStyles, prefetchArticle } from '../wiki.js'
 import { createBoard } from './board.js'
 
 function normaliseDifficulty(value) {
@@ -109,13 +109,19 @@ export async function playView({ code }) {
   }
 
   load(route.start.key)
+  prefetchArticle(route.target.key)
 
   async function load(key) {
     timer.pause()
     article.setAttribute('aria-busy', 'true')
-    status.replaceChildren(el('p', { class: 'muted', role: 'status' }, 'Loading'))
+    const loading = el('p', { class: 'muted', role: 'status' }, 'Loading')
+    status.replaceChildren(loading)
+    const slow = setTimeout(() => {
+      loading.textContent = 'Still loading. Wikipedia is slow to serve this article; the clock is paused.'
+    }, 4000)
     try {
       const page = await fetchArticle(key)
+      clearTimeout(slow)
       if (finished) return
       currentKey = page.key
       path[path.length - 1] = page.key
@@ -137,6 +143,7 @@ export async function playView({ code }) {
         }),
       )
     } catch (err) {
+      clearTimeout(slow)
       status.replaceChildren(
         notice(err.message, 'error'),
         button('Retry', () => load(key), { class: 'secondary' }),

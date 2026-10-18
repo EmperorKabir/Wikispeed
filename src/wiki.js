@@ -241,15 +241,31 @@ export async function suggestTitles(query, limit = 20) {
   return merged.slice(0, limit)
 }
 
-export async function fetchArticle(key) {
+const prefetched = new Map()
+
+async function downloadArticle(key) {
   const response = await fetch(`${CORE}/page/${encodeURIComponent(key)}/html`, {
     headers: { 'Api-User-Agent': WIKI_UA },
   })
   if (response.status === 404) throw new Error('That article does not exist')
   if (!response.ok) throw new Error(`Wikipedia responded ${response.status}`)
-  const html = await response.text()
+  return { html: await response.text(), canonical: keyFromUrl(response.url) ?? key }
+}
+
+export function prefetchArticle(key) {
+  if (!prefetched.has(key)) {
+    const promise = downloadArticle(key)
+    promise.catch(() => prefetched.delete(key))
+    prefetched.set(key, promise)
+  }
+  return prefetched.get(key)
+}
+
+export async function fetchArticle(key) {
+  const pending = prefetched.get(key)
+  prefetched.delete(key)
+  const { html, canonical } = await (pending ?? downloadArticle(key))
   const { title, body } = sanitiseArticle(html)
-  const canonical = keyFromUrl(response.url) ?? key
   return { key: canonical, title: title || titleFromKey(canonical), body }
 }
 
