@@ -39,6 +39,8 @@ export function roomView(code, initial) {
   let advancing = false
   let chooserPanel = null
   let overriding = false
+  let countdownTimer = null
+  const routeTried = new Set()
 
   const header = el('div', { class: 'stack' })
   const settings = el('section', { class: 'card stack' })
@@ -276,13 +278,14 @@ export function roomView(code, initial) {
       if (round[which]) return el('span', {}, round[which].title)
       const known = routes.get(round.n)?.[which]
       if (known && myAttempts(round.n).length > 0) return el('span', {}, known.title)
-      if (hidden && myAttempts(round.n).length > 0 && !known) {
+      if (hidden && myAttempts(round.n).length > 0 && !known && !routeTried.has(round.n)) {
+        routeTried.add(round.n)
         readRoute({ kind: 'round', code, n: round.n }).then((r) => {
           if (r) {
             routes.set(round.n, r)
             render()
           }
-        }).catch(() => {})
+        }).catch(() => routeTried.delete(round.n))
       }
       return el('span', { class: 'masked' }, 'Hidden until you play')
     }
@@ -334,11 +337,13 @@ export function roomView(code, initial) {
       if (left > 0) {
         const count = el('span', { class: 'done' }, String(Math.ceil(left / 1000)))
         body.append(el('p', {}, 'Starting together in ', count))
-        const timerId = setInterval(() => {
+        clearInterval(countdownTimer)
+        countdownTimer = setInterval(() => {
           const remaining = round.countdownAt.toMillis() - Date.now()
           count.textContent = String(Math.max(0, Math.ceil(remaining / 1000)))
           if (remaining <= 0) {
-            clearInterval(timerId)
+            clearInterval(countdownTimer)
+            countdownTimer = null
             if (myAttempts(round.n).length === 0 && displayName()) go(playPath({ kind: 'round', code, n: round.n }))
             else render()
           }
@@ -509,6 +514,7 @@ export function roomView(code, initial) {
     stopSession()
     stopPlayers()
     stopRounds()
+    clearInterval(countdownTimer)
     for (const stop of runStops.values()) stop()
     for (const board of boards.values()) board.dispose()
   })

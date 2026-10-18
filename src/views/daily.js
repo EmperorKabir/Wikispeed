@@ -54,7 +54,7 @@ function nameGate(after) {
   nameInput.addEventListener('input', () => {
     save.disabled = nameInput.value.trim().length === 0
   })
-  return el('section', { class: 'card row' }, el('span', { class: 'muted small' }, 'Pick a name to appear on the boards:'), nameInput, save)
+  return el('section', { class: 'card row' }, el('span', { class: 'muted small' }, 'Pick a name to appear on the leaderboards:'), nameInput, save)
 }
 
 export async function dailyIndexView({ date } = {}) {
@@ -82,7 +82,7 @@ export async function dailyIndexView({ date } = {}) {
     return el(
       'div',
       { class: 'card stack-small daily-cell' },
-      el('div', { class: 'row' }, play, link('Board', `/daily/${day}/${slug}`, { class: 'button secondary small-button' })),
+      el('div', { class: 'row' }, play, link('Leaderboard', `/daily/${day}/${slug}`, { class: 'button secondary small-button' })),
       el('span', { class: 'muted small' }, have.has(slug) ? 'In play' : isToday ? 'Not started by anyone yet' : 'Nobody played this one'),
     )
   }
@@ -99,17 +99,23 @@ export async function dailyIndexView({ date } = {}) {
     return el('div', { class: 'daily-grid' }, cells)
   }
 
-  const gate = displayName() ? null : nameGate(() => go(`/daily/${day}`))
+  const gateSlot = el('div')
+  const gridSlot = el('div')
+  function render() {
+    gateSlot.replaceChildren(...(displayName() ? [] : [nameGate(render)]))
+    gridSlot.replaceChildren(grid())
+  }
+  render()
   const root = el(
     'div',
     { class: 'stack' },
     back(),
     el('h1', {}, isToday ? 'Daily challenge' : `Daily challenge, ${day}`),
-    el('p', { class: 'muted' }, 'Eight fresh routes every day, one global board each. Articles stay hidden until you press Play. Only your first attempt is ranked; you can practise afterwards.'),
+    el('p', { class: 'muted' }, 'Eight fresh routes every day, each with a global leaderboard. Articles stay hidden until you press Play. Only your first attempt is ranked; you can practise afterwards.'),
     isToday ? reset.el : el('p', { class: 'muted small' }, link('Back to today', '/daily')),
-    gate,
+    gateSlot,
     error,
-    grid(),
+    gridSlot,
     isToday ? el('p', { class: 'muted small' }, link("Yesterday's challenges", `/daily/${todayKey(new Date(Date.now() - 86400000))}`)) : null,
   )
   return view(root, () => reset.stop())
@@ -184,7 +190,7 @@ export async function dailyChallengeView({ date, slug }) {
       action.append(el('p', { class: 'muted', role: 'status' }, text))
     }
     if (!isToday) {
-      action.append(el('p', { class: 'muted' }, 'This challenge has closed. The board is final.'))
+      action.append(el('p', { class: 'muted' }, 'This challenge has closed. The leaderboard is final.'))
       return
     }
     if (!displayName()) {
@@ -192,7 +198,7 @@ export async function dailyChallengeView({ date, slug }) {
       return
     }
     if (latest) {
-      action.append(el('p', { class: 'muted small' }, 'Your first attempt is the one on the board. You can practise this route again; practice runs are listed under your name but not ranked.'))
+      action.append(el('p', { class: 'muted small' }, 'Your first attempt is the one on the leaderboard. You can practise this route again; practice runs are listed under your name but not ranked.'))
     }
     action.append(button(latest ? 'Practise again (not ranked)' : 'Play', () => go(playPath(arena)), { class: latest ? 'secondary' : 'primary' }))
   }

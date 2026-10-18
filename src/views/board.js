@@ -160,7 +160,7 @@ export function createBoard(session, uid, { title = 'Leaderboard', firstOnly = f
         ),
       ),
     )
-    if (firstOnly) root.append(el('p', { class: 'muted small' }, 'Only each player’s first attempt is ranked. Later tries are practice and are listed but not scored.'))
+    if (firstOnly) root.append(el('p', { class: 'muted small' }, 'Only each player’s first attempt is ranked on this leaderboard. Later tries are practice and are listed but not scored.'))
     if (session.mode === 'multi' && !showRoutes && session.status !== 'lobby') {
       root.append(el('p', { class: 'muted small' }, 'Routes are shown once you have had a go.'))
     }

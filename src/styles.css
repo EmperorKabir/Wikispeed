@@ -317,13 +317,20 @@ legend {
 
 .suggestion {
   width: 100%;
-  justify-content: flex-start;
+  display: grid;
+  gap: 0.125rem;
+  justify-items: start;
   text-align: left;
   background: transparent;
   border: 0;
   border-radius: 0;
   color: inherit;
   padding: 0.5rem 0.75rem;
+  font-weight: 400;
+}
+
+.suggestion-title {
+  font-weight: 600;
 }
 
 .suggestion:hover,

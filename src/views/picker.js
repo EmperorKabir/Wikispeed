@@ -49,8 +49,8 @@ export function createPicker(label, name, { hideOption = true, legend = false } 
           el(
             'button',
             { type: 'button', class: 'suggestion', onmousedown: (e) => e.preventDefault(), onclick: () => choose(p) },
-            el('span', {}, p.title),
-            p.description ? el('span', { class: 'muted small' }, ` ${p.description}`) : null,
+            el('span', { class: 'suggestion-title' }, p.title),
+            p.description ? el('span', { class: 'muted small' }, p.description) : null,
           ),
         ),
       ),

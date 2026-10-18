@@ -154,10 +154,10 @@ export const DIFFICULTIES = {
   easy: { level: 3, label: 'Easy', hint: "Wikipedia's 1,000 most important topics" },
   medium: { level: 4, label: 'Medium', hint: 'The next 9,000 notable topics' },
   hard: { level: 5, label: 'Hard', hint: 'The next 40,000: real but specialist' },
-  any: { level: 0, label: 'Anything', hint: 'Any of 7 million articles, usually obscure' },
+  any: { level: 0, label: 'Anything', hint: 'Any of the other 7 million articles, usually obscure' },
 }
 
-export const TIER_LEGEND = 'Tiers do not overlap: Easy is the top 1,000 topics, Medium the next 9,000, Hard the next 40,000, Anything the whole encyclopaedia.'
+export const TIER_LEGEND = 'Four separate pools, no overlap: Easy is the top 1,000 topics, Medium the next 9,000, Hard the next 40,000, and Anything is everything else on Wikipedia, never one of those 50,000.'
 
 export function describeDifficulty(value) {
   const name = (tier) => DIFFICULTIES[tier]?.label ?? 'Chosen'
@@ -218,11 +218,38 @@ async function randomVital(level, tries) {
   throw new Error('Could not find a random article')
 }
 
+async function isVital(key) {
+  const url =
+    `${API}?action=query&prop=categories&titles=${encodeURIComponent(`Talk:${key}`)}` +
+    `&cllimit=max&format=json&origin=*`
+  const data = await getJson(url).catch(() => null)
+  const page = data?.query?.pages ? Object.values(data.query.pages)[0] : null
+  return (page?.categories ?? []).some((c) => /vital articles/i.test(c.title))
+}
+
+async function randomCandidates() {
+  const url =
+    `${API}?action=query&generator=random&grnnamespace=0&grnfilterredir=nonredirects&grnlimit=8` +
+    `&prop=pageprops&ppprop=disambiguation&format=json&origin=*`
+  const data = await getJson(url).catch(() => null)
+  const pages = data?.query?.pages ? Object.values(data.query.pages) : []
+  return pages.filter((p) => !p.pageprops || !('disambiguation' in p.pageprops)).map((p) => keyFromTitle(p.title))
+}
+
 export async function randomArticle(difficulty = 'any', tries = 6) {
   const level = DIFFICULTIES[difficulty]?.level ?? 0
   if (level) return randomVital(level, tries)
+  let candidates = await randomCandidates()
   for (let i = 0; i < tries; i++) {
-    const page = pageFromSummary(await getJson(`${REST}/page/random/summary`))
+    let page
+    if (candidates.length) {
+      const key = candidates.shift()
+      if (await isVital(key)) continue
+      page = await lookup(key)
+    } else {
+      page = pageFromSummary(await getJson(`${REST}/page/random/summary`))
+      if (page && (await isVital(page.key))) continue
+    }
     if (page && page.type === 'standard') return page
   }
   throw new Error('Could not find a random article')

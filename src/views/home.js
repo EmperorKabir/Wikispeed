@@ -92,7 +92,7 @@ export function homeView() {
       { class: 'choices' },
       link([el('strong', {}, 'Solo'), el('small', {}, 'Race on your own')], '/new/solo', { class: 'choice' }),
       link([el('strong', {}, 'Multiplayer'), el('small', {}, 'Share a code, play together or later')], '/multi', { class: 'choice' }),
-      link([el('strong', {}, 'Daily challenge'), el('small', {}, 'Eight routes a day, global boards')], '/daily', { class: 'choice' }),
+      link([el('strong', {}, 'Daily challenge'), el('small', {}, 'Eight routes a day, global leaderboards')], '/daily', { class: 'choice' }),
     ),
     error,
     account,
