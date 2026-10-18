@@ -49,6 +49,7 @@ export async function playView({ code }) {
   } catch {
     // storage unavailable; use the default size
   }
+  const giveUpButton = button('Give up', () => giveUp(`/s/${code}`), { class: 'danger' })
   const smaller = button('A−', () => setSize(sizeIndex - 1), { class: 'text size', 'aria-label': 'Smaller text' })
   const larger = button('A+', () => setSize(sizeIndex + 1), { class: 'text size', 'aria-label': 'Larger text' })
 
@@ -74,7 +75,7 @@ export async function playView({ code }) {
       attemptOut,
       el('span', { class: 'primary-stat' }, el('span', { class: 'muted small' }, timed ? 'Time ' : 'Clicks '), metricOut),
       el('span', { class: 'sizes' }, smaller, larger),
-      button('Give up', () => giveUp(`/s/${code}`), { class: 'danger' }),
+      giveUpButton,
       button('Home', () => giveUp('/'), { class: 'text' }),
     ),
   )
@@ -185,6 +186,7 @@ export async function playView({ code }) {
 
   async function finish() {
     finished = true
+    giveUpButton.hidden = true
     timer.pause()
     clearInterval(tick)
     metricOut.textContent = timed ? formatMs(Math.round(timer.elapsed())) : String(clicks)
