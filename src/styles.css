@@ -90,7 +90,7 @@ body {
   padding-block: 0.5rem;
   border-top: 1px solid var(--line);
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.875rem;
 }
 
 .app-footer a {
@@ -154,13 +154,13 @@ h1:focus {
 }
 
 .small {
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
 }
 
 .back a {
   color: var(--muted);
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
 }
 
 .back a:hover {
@@ -332,7 +332,7 @@ legend {
 }
 
 .choice small {
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 400;
   color: var(--muted);
 }
@@ -442,7 +442,7 @@ legend {
 
 .board button.text.small {
   min-height: 32px;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
 }
 
 .path-row td {
@@ -453,7 +453,7 @@ legend {
 .path {
   margin: 0.25rem 0 0;
   padding-left: 1.25rem;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   display: grid;
   gap: 0.125rem;
 }
