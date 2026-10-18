@@ -4,7 +4,7 @@ import { openSession, readRoute, watchRuns, watchSession } from '../db.js'
 import { go } from '../router.js'
 import { SCORING, attemptStatus, formatMs, playerRows } from '../score.js'
 import { back, button, copyText, el, mask, notice, view } from '../ui.js'
-import { titleFromKey } from '../wiki.js'
+import { articleUrl, titleFromKey } from '../wiki.js'
 
 function notFound() {
   return view(el('div', { class: 'stack' }, back(), el('h1', {}, 'No session with that code')))
@@ -191,6 +191,14 @@ export function sessionView({ code: raw }) {
     return myAttempts().some((a) => a.done || a.quit)
   }
 
+  function routeList(path) {
+    return el(
+      'ol',
+      { class: 'path' },
+      path.map((key) => el('li', {}, el('a', { href: articleUrl(key), target: '_blank', rel: 'noopener' }, titleFromKey(key)))),
+    )
+  }
+
   function attemptList(row, showRoutes) {
     const items = row.attempts.map((run) => {
       const parts = [el('strong', {}, `Attempt ${run.attempt}`), el('span', {}, resultText(run))]
@@ -199,10 +207,22 @@ export function sessionView({ code: raw }) {
       }
       const line = el('div', { class: 'row attempt-line' }, parts)
       if (!showRoutes || !(run.path?.length > 1)) return el('li', {}, line)
-      const steps = run.path.map((key) => el('li', {}, titleFromKey(key)))
-      return el('li', {}, line, el('ol', { class: 'path' }, steps))
+      return el('li', {}, line, routeList(run.path))
     })
     return el('tr', { class: 'path-row' }, el('td', { colspan: '5' }, el('ul', { class: 'attempts' }, items)))
+  }
+
+  function shortestRoute() {
+    const finished = runs.filter((r) => r.done && r.path?.length > 1).sort((a, b) => a.clicks - b.clicks || a.ms - b.ms)
+    const best = finished[0]
+    if (!best) return null
+    return el(
+      'section',
+      { class: 'card stack-small' },
+      el('h2', {}, 'Shortest route found'),
+      el('p', { class: 'muted small' }, `${best.name}, ${best.clicks} ${best.clicks === 1 ? 'click' : 'clicks'} in ${formatMs(best.ms)}. Tap a step to read that article.`),
+      routeList(best.path),
+    )
   }
 
   function renderBoard(scoring) {
@@ -245,6 +265,10 @@ export function sessionView({ code: raw }) {
     )
     if (session.mode === 'multi' && !showRoutes && session.status === 'open') {
       board.append(el('p', { class: 'muted small' }, 'Routes are shown once you have had a go.'))
+    }
+    if (showRoutes) {
+      const best = shortestRoute()
+      if (best) board.append(best)
     }
   }
 
