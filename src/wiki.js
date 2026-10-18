@@ -106,9 +106,16 @@ function headers() {
   return { 'Api-User-Agent': WIKI_UA, Accept: 'application/json' }
 }
 
-async function getJson(url) {
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+async function getJson(url, retry = true) {
   const response = await fetch(url, { headers: headers() })
   if (response.status === 404) return null
+  if (response.status === 429 && retry) {
+    await wait(2500)
+    return getJson(url, false)
+  }
+  if (response.status === 429) throw new Error('Wikipedia is asking us to slow down. Wait a few seconds and try again.')
   if (!response.ok) throw new Error(`Wikipedia responded ${response.status}`)
   return response.json()
 }
