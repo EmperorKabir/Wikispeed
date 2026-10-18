@@ -332,3 +332,25 @@ export function loadWikiStyles() {
     link.disabled = true
   }
 }
+
+export function enhanceCollapsibles(root) {
+  for (const box of root.querySelectorAll('.mw-collapsible')) {
+    const content = box.querySelector(':scope > .mw-collapsible-content') ?? box.querySelector('.mw-collapsible-content')
+    if (!content) continue
+    const toggle = root.ownerDocument.createElement('button')
+    toggle.type = 'button'
+    toggle.className = 'mw-toggle'
+    const sync = () => {
+      toggle.textContent = box.classList.contains('mw-collapsed') ? 'show' : 'hide'
+    }
+    toggle.addEventListener('click', (event) => {
+      event.preventDefault()
+      event.stopPropagation()
+      box.classList.toggle('mw-collapsed')
+      sync()
+    })
+    sync()
+    const title = box.firstElementChild && box.firstElementChild !== content ? box.firstElementChild : box
+    title.append(toggle)
+  }
+}
