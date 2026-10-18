@@ -1,5 +1,47 @@
-import { describe, expect, it } from 'vitest'
-import { isArticleKey, keyFromHref, keyFromUrl, sanitiseArticle, titleFromKey } from '../src/wiki.js'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { isArticleKey, keyFromHref, keyFromUrl, resolveTitle, sanitiseArticle, titleFromKey } from '../src/wiki.js'
+
+function fakeWikipedia(pages, search = []) {
+  return vi.fn(async (url) => {
+    const u = String(url)
+    if (u.includes('/search/title')) return { ok: true, status: 200, json: async () => ({ pages: search }) }
+    const key = decodeURIComponent(u.split('/page/summary/')[1])
+    const page = pages[key]
+    if (!page) return { ok: false, status: 404, json: async () => ({}) }
+    return { ok: true, status: 200, json: async () => page }
+  })
+}
+
+const summary = (title, type = 'standard') => ({ title, type, titles: { canonical: title.replace(/ /g, '_'), normalized: title } })
+
+describe('resolveTitle', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('returns the exact article when it exists', async () => {
+    vi.stubGlobal('fetch', fakeWikipedia({ Bubble_tea: summary('Bubble tea') }))
+    expect((await resolveTitle('bubble tea')).key).toBe('Bubble_tea')
+  })
+  it('retries with each word capitalised', async () => {
+    const fetch = fakeWikipedia({ 'Tom_&_Jerry': summary('Tom and Jerry') })
+    vi.stubGlobal('fetch', fetch)
+    expect((await resolveTitle('tom & jerry')).key).toBe('Tom_and_Jerry')
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+  it('falls back to the first standard search result', async () => {
+    vi.stubGlobal(
+      'fetch',
+      fakeWikipedia(
+        { Mercury: summary('Mercury', 'disambiguation'), 'Mercury_(planet)': summary('Mercury (planet)') },
+        [{ key: 'Mercury', title: 'Mercury' }, { key: 'Mercury_(planet)', title: 'Mercury (planet)' }],
+      ),
+    )
+    expect((await resolveTitle('mercury')).key).toBe('Mercury_(planet)')
+  })
+  it('returns null when nothing matches', async () => {
+    vi.stubGlobal('fetch', fakeWikipedia({}))
+    expect(await resolveTitle('zzqqxx')).toBeNull()
+  })
+})
 
 describe('keyFromUrl', () => {
   it('reads the page key from a core REST url', () => {

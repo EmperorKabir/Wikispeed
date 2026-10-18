@@ -55,7 +55,8 @@ export function titleFromKey(key) {
 }
 
 function keyFromTitle(title) {
-  return String(title).trim().replace(/\s+/g, '_')
+  const key = String(title).trim().replace(/\s+/g, '_')
+  return key.charAt(0).toUpperCase() + key.slice(1)
 }
 
 export function sanitiseArticle(html) {
@@ -126,11 +127,20 @@ async function lookup(key) {
   return pageFromSummary(await getJson(`${REST}/page/summary/${encodeURIComponent(key)}`))
 }
 
+function titleCase(key) {
+  return key.replace(/(^|_|\(|-)([a-z])/g, (m, before, letter) => before + letter.toUpperCase())
+}
+
 export async function resolveTitle(text) {
   const key = keyFromTitle(text)
   if (!key) return null
   const exact = await lookup(key)
   if (exact && exact.type === 'standard') return exact
+  const cased = titleCase(key)
+  if (cased !== key) {
+    const page = await lookup(cased)
+    if (page && page.type === 'standard') return page
+  }
   for (const candidate of await suggestTitles(text, 5)) {
     const page = await lookup(candidate.key)
     if (page && page.type === 'standard') return page
