@@ -220,13 +220,20 @@ service cloud.firestore {
 
       match /players/{uid} {
         allow read: if signedIn();
-        allow create, update: if signedIn()
+        allow create: if signedIn()
           && me() == uid
           && request.resource.data.keys().hasOnly(['name', 'joinedAt'])
           && request.resource.data.name is string
           && request.resource.data.name.size() >= 1
           && request.resource.data.name.size() <= 32
           && request.resource.data.joinedAt == request.time;
+        allow update: if signedIn()
+          && me() == uid
+          && request.resource.data.keys().hasOnly(['name', 'joinedAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() >= 1
+          && request.resource.data.name.size() <= 32
+          && request.resource.data.joinedAt == resource.data.joinedAt;
         allow delete: if false;
       }
 

@@ -1,20 +1,40 @@
 import { playerRows } from './score.js'
 
 export const SYSTEMS = {
-  points: { label: 'Placing points', hint: 'First place scores most each round; totals decide', higher: true },
-  wins: { label: 'Round wins', hint: 'One point for winning a round', higher: true },
-  golf: { label: 'Golf', hint: 'Total clicks across rounds; lowest wins', higher: false },
-  time: { label: 'Cumulative time', hint: 'Total time across rounds; lowest wins', higher: false },
-  independent: { label: 'Independent rounds', hint: 'Each round stands alone; no overall table', higher: true },
+  points: {
+    label: 'Podium points',
+    hint: 'Each round, the winner gets as many points as there were finishers, second one fewer, and so on down to 1. Highest total after all rounds wins.',
+    higher: true,
+  },
+  wins: {
+    label: 'Most rounds won',
+    hint: 'Only the winner of each round scores, one point per round. Most rounds won takes the room.',
+    higher: true,
+  },
+  golf: {
+    label: 'Fewest clicks in total',
+    hint: 'Add up every player’s clicks across all rounds. Lowest total wins; you must finish every round to be ranked.',
+    higher: false,
+  },
+  time: {
+    label: 'Fastest time in total',
+    hint: 'Add up every player’s time across all rounds. Lowest total wins; you must finish every round to be ranked.',
+    higher: false,
+  },
+  independent: {
+    label: 'No overall score',
+    hint: 'Each round has its own board and nothing is added up.',
+    higher: true,
+  },
 }
 
 export const CHOOSER_POLICIES = {
-  host: { label: 'Host every round' },
-  rotate: { label: 'Take turns', hint: 'In the order players joined' },
-  prevWinner: { label: "Previous round's winner" },
-  prevLoser: { label: "Previous round's loser" },
-  leader: { label: 'Current leader' },
-  last: { label: 'Current last place' },
+  host: { label: 'Host every round', hint: 'The host picks the articles for every round.' },
+  rotate: { label: 'Take turns', hint: 'Players take turns in the order they joined the room: round 1 the first to join, round 2 the second, and round again.' },
+  prevWinner: { label: "Previous round's winner", hint: 'Whoever won the last round picks the next one. Round 1 is picked by the host.' },
+  prevLoser: { label: "Previous round's loser", hint: 'Whoever finished last in the previous round picks the next one. Round 1 is picked by the host.' },
+  leader: { label: 'Current leader', hint: 'Whoever is top of the overall standings picks. Round 1 is picked by the host.' },
+  last: { label: 'Current last place', hint: 'Whoever is bottom of the overall standings picks. Round 1 is picked by the host.' },
 }
 
 export function roundResults(runs, scoring) {

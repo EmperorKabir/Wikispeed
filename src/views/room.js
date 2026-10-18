@@ -192,8 +192,8 @@ export function roomView(code, initial) {
         { class: 'settings' },
         field('Rounds', roundsInput, 'Best of up to 10'),
         field('Scoring for each round', scoringRow, room.chooserPicks === 'both' ? 'Each chooser may change this for their round' : null),
-        field('Overall scoring', select('system', SYSTEMS, room.system, (v) => save({ system: v })), SYSTEMS[room.system]?.hint),
-        field('Who chooses the articles', select('policy', CHOOSER_POLICIES, room.chooserPolicy, (v) => save({ chooserPolicy: v })), CHOOSER_POLICIES[room.chooserPolicy]?.hint),
+        field('How the overall winner is decided', select('system', SYSTEMS, room.system, (v) => save({ system: v })), SYSTEMS[room.system]?.hint),
+        field('Who chooses the articles each round', select('policy', CHOOSER_POLICIES, room.chooserPolicy, (v) => save({ chooserPolicy: v })), CHOOSER_POLICIES[room.chooserPolicy]?.hint),
         el('label', { class: 'check' }, el('input', { type: 'checkbox', checked: room.chooserPicks === 'both', onchange: (e) => save({ chooserPicks: e.target.checked ? 'both' : 'articles' }) }), ' The chooser also picks timed or fewest clicks'),
         el('label', { class: 'check' }, el('input', { type: 'checkbox', checked: room.split, onchange: (e) => save({ split: e.target.checked }) }), ' Start and finish chosen by different players'),
         field('How rounds start', startRow),
@@ -233,7 +233,8 @@ export function roomView(code, initial) {
     const ordered = [...players].sort((a, b) => (a.joinedAt?.toMillis?.() ?? 0) - (b.joinedAt?.toMillis?.() ?? 0))
     playersSlot.append(
       el('h2', {}, `Players (${ordered.length})`),
-      el('ul', { class: 'players' }, ordered.map((p) => el('li', {}, p.name, p.id === room.host ? el('span', { class: 'muted small' }, ' host') : null))),
+      el('ul', { class: 'players' }, ordered.map((p, i) => el('li', {}, `${i + 1}. ${p.name}`, p.id === room.host ? el('span', { class: 'muted small' }, ' host') : null))),
+      room.chooserPolicy === 'rotate' ? el('p', { class: 'muted small' }, 'Turn order for choosing follows this list.') : null,
     )
   }
 

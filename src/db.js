@@ -139,7 +139,13 @@ export async function openSession(code) {
 }
 
 export async function joinSession(code, uid, name) {
-  await setDoc(doc(playersRef(code), uid), { name, joinedAt: serverTimestamp() }, { merge: true })
+  const ref = doc(playersRef(code), uid)
+  const existing = await getDoc(ref)
+  if (existing.exists()) {
+    if (existing.data().name !== name) await updateDoc(ref, { name })
+    return
+  }
+  await setDoc(ref, { name, joinedAt: serverTimestamp() })
 }
 
 export function watchPlayers(code, onChange, onError) {
