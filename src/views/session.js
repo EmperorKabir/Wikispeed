@@ -1,21 +1,29 @@
 import { currentUser, displayName, setName } from '../auth.js'
 import { isValidCode, normaliseCode } from '../code.js'
-import { joinSession, openSession, readRoute, watchPlayers, watchRuns, watchSession } from '../db.js'
+import { getSession, joinSession, openSession, readRoute, watchPlayers, watchRuns, watchSession } from '../db.js'
 import { go } from '../router.js'
 import { SCORING, attemptStatus, formatMs } from '../score.js'
 import { back, button, copyText, el, mask, notice, view } from '../ui.js'
 import { describeDifficulty } from '../wiki.js'
 import { createBoard } from './board.js'
+import { roomView } from './room.js'
 
 function notFound() {
   return view(el('div', { class: 'stack' }, back(), el('h1', {}, 'No session with that code')))
 }
 
-export function sessionView({ code: raw }) {
+export async function sessionView({ code: raw }) {
   const code = normaliseCode(raw)
   if (!isValidCode(code)) return notFound()
+  const session = await getSession(code)
+  if (!session) return notFound()
+  if (session.version === 2) return roomView(code, session)
+  return legacySessionView(code)
+}
 
+function legacySessionView(code) {
   const uid = currentUser().uid
+  const arena = { kind: 'session', code }
   let session
   let runs = []
   let route = null
@@ -52,7 +60,7 @@ export function sessionView({ code: raw }) {
         board = createBoard(session, uid)
         boardSlot.replaceChildren(board.el)
         stopRuns = watchRuns(
-          code,
+          arena,
           (data) => {
             runs = data
             board.update({ runs })
@@ -65,7 +73,7 @@ export function sessionView({ code: raw }) {
       }
       if (revealAllowed() && !route) {
         try {
-          route = await readRoute(code)
+          route = await readRoute(arena)
         } catch {
           route = null
         }
@@ -106,7 +114,6 @@ export function sessionView({ code: raw }) {
   function render() {
     const scoring = SCORING[session.scoring] ?? SCORING.time
     const kind = session.mode === 'solo' ? 'Solo' : 'Multiplayer'
-
     const level = describeDifficulty(session.difficulty)
     header.replaceChildren(
       el('h1', {}, `${kind} · ${scoring.label}`),
@@ -120,7 +127,6 @@ export function sessionView({ code: raw }) {
       ),
     )
     if (session.mode === 'multi') header.append(codeBlock())
-
     if (!action.contains(document.activeElement)) renderAction()
   }
 
@@ -138,37 +144,32 @@ export function sessionView({ code: raw }) {
     return el('p', { class: 'row' }, el('span', { class: 'muted small' }, 'Code'), el('span', { class: 'code' }, code), copy)
   }
 
+  function nameForm(label, after) {
+    const nameInput = el('input', { type: 'text', name: 'nickname', maxlength: '32', placeholder: 'Your name', 'aria-label': 'Your name', autocomplete: 'nickname' })
+    const save = button(label, async () => {
+      save.disabled = true
+      try {
+        await setName(nameInput.value)
+      } catch {
+        save.disabled = false
+        return
+      }
+      join()
+      after()
+    }, { class: 'primary', disabled: true })
+    nameInput.addEventListener('input', () => {
+      save.disabled = nameInput.value.trim().length === 0
+    })
+    return el('div', { class: 'row' }, nameInput, save)
+  }
+
   function renderAction() {
     action.replaceChildren()
     const attempts = myAttempts()
     const latest = attempts[attempts.length - 1]
 
     if (session.status === 'lobby') {
-      if (!displayName()) {
-        const nameInput = el('input', {
-          type: 'text',
-          name: 'nickname',
-          maxlength: '32',
-          placeholder: 'Your name',
-          'aria-label': 'Your name',
-          autocomplete: 'nickname',
-        })
-        const saveButton = button('Join as this name', async () => {
-          saveButton.disabled = true
-          try {
-            await setName(nameInput.value)
-          } catch {
-            saveButton.disabled = false
-            return
-          }
-          join()
-          renderAction()
-        }, { class: 'secondary', disabled: true })
-        nameInput.addEventListener('input', () => {
-          saveButton.disabled = nameInput.value.trim().length === 0
-        })
-        action.append(el('div', { class: 'row' }, nameInput, saveButton))
-      }
+      if (!displayName()) action.append(nameForm('Join as this name', renderAction))
       if (session.host === uid) {
         const start = button('Start session', async () => {
           start.disabled = true
@@ -179,10 +180,7 @@ export function sessionView({ code: raw }) {
             error.replaceChildren(notice(`Could not start: ${err.message}`, 'error'))
           }
         }, { class: 'primary' })
-        action.append(
-          el('p', { class: 'muted' }, 'Share the code. Start when everyone has joined; players can then play whenever they like.'),
-          start,
-        )
+        action.append(el('p', { class: 'muted' }, 'Share the code. Start when everyone has joined; players can then play whenever they like.'), start)
       } else {
         action.append(el('p', { class: 'muted', role: 'status' }, 'Waiting for the host to start.'))
       }
@@ -193,43 +191,15 @@ export function sessionView({ code: raw }) {
       const text = latest.done ? `Attempt ${latest.attempt}: ${resultText(latest)}.` : `Attempt ${latest.attempt}: ${attemptStatus(latest)}.`
       action.append(el('p', { class: 'muted', role: 'status' }, text))
     }
-
-    const name = displayName()
     const label = latest ? 'Play again' : 'Play'
-
-    if (name) {
-      action.append(button(label, () => go(`/play/${code}`), { class: 'primary' }))
-      return
-    }
-
-    const nameInput = el('input', {
-      type: 'text',
-      name: 'nickname',
-      maxlength: '32',
-      placeholder: 'Your name',
-      'aria-label': 'Your name',
-      autocomplete: 'nickname',
-    })
-    const playButton = button(label, async () => {
-      playButton.disabled = true
-      try {
-        await setName(nameInput.value)
-      } catch {
-        playButton.disabled = false
-        return
-      }
-      join()
-      go(`/play/${code}`)
-    }, { class: 'primary', disabled: true })
-    nameInput.addEventListener('input', () => {
-      playButton.disabled = nameInput.value.trim().length === 0
-    })
-    action.append(el('div', { class: 'row' }, nameInput, playButton))
+    if (displayName()) action.append(button(label, () => go(`/play/${code}`), { class: 'primary' }))
+    else action.append(nameForm(label, () => go(`/play/${code}`)))
   }
 
   return view(root, () => {
     stopSession()
     stopRuns()
     stopPlayers()
+    board?.dispose()
   })
 }

@@ -1,5 +1,17 @@
 import { currentUser, displayName } from '../auth.js'
-import { getSession, readRoute, recordRun, startRun, watchPlayers, watchRuns } from '../db.js'
+import {
+  arenaPath,
+  getDaily,
+  getRound,
+  getSession,
+  progressRun,
+  readRoute,
+  recordRun,
+  startRun,
+  todayKey,
+  watchPlayers,
+  watchRuns,
+} from '../db.js'
 import { go } from '../router.js'
 import { formatMs, playerRows } from '../score.js'
 import { createTimer } from '../timer.js'
@@ -13,20 +25,72 @@ function normaliseDifficulty(value) {
   return { start: 'typed', target: 'typed' }
 }
 
-export async function playView({ code }) {
+async function resolveArena(params) {
+  if (params.date) {
+    const arena = { kind: 'daily', date: params.date, slug: params.slug }
+    if (params.date !== todayKey()) return { arena, error: 'That daily challenge has closed.' }
+    const challenge = await getDaily(params.date, params.slug)
+    if (!challenge) return { arena, error: 'That daily challenge is not ready yet.' }
+    return {
+      arena,
+      scoring: challenge.scoring,
+      difficulty: challenge.difficulty,
+      mode: 'daily',
+      history: { kind: 'daily', date: params.date, slug: params.slug },
+      board: { mode: 'multi', status: 'open', scoring: challenge.scoring },
+    }
+  }
+  const session = await getSession(params.code)
+  if (!session) return { arena: { kind: 'session', code: params.code }, error: 'No session with that code.' }
+  if (params.n) {
+    const arena = { kind: 'round', code: params.code, n: Number(params.n) }
+    const round = await getRound(params.code, arena.n)
+    if (!round || round.status !== 'open') return { arena, error: 'That round is not open.' }
+    return {
+      arena,
+      scoring: round.scoring,
+      difficulty: round.difficulty,
+      mode: 'multi',
+      countdownAt: round.countdownAt,
+      history: { kind: 'round', code: params.code, round: arena.n },
+      board: { mode: 'multi', status: 'open', scoring: round.scoring },
+    }
+  }
+  const arena = { kind: 'session', code: params.code }
+  if (session.version === 2 || session.status !== 'open') return { arena, error: 'This session is not open for play.' }
+  return {
+    arena,
+    scoring: session.scoring,
+    difficulty: session.difficulty,
+    mode: session.mode,
+    history: { kind: 'session', code: params.code },
+    board: { mode: session.mode, status: session.status, scoring: session.scoring },
+  }
+}
+
+export async function playView(params) {
   const user = currentUser()
   const name = displayName(user)
-  const [session, route] = await Promise.all([getSession(code), readRoute(code).catch(() => null)])
+  const ctx = await resolveArena(params)
+  const backPath = arenaPath(ctx.arena)
 
-  if (!session || session.status !== 'open' || !name || !route) {
-    go(`/s/${code}`)
+  if (ctx.error || !name) {
+    go(backPath)
     return view(el('div'))
   }
 
-  const timed = session.scoring === 'time'
+  const route = await readRoute(ctx.arena).catch(() => null)
+  if (!route) {
+    go(backPath)
+    return view(el('div'))
+  }
+
+  const { arena, scoring } = ctx
+  const timed = scoring === 'time'
   const timer = createTimer()
   const path = [route.start.key]
   let clicks = 0
+  let loadMs = 0
   let finished = false
   let currentKey = route.start.key
   let tick = null
@@ -49,7 +113,7 @@ export async function playView({ code }) {
   } catch {
     // storage unavailable; use the default size
   }
-  const giveUpButton = button('Give up', () => giveUp(`/s/${code}`), { class: 'danger' })
+  const giveUpButton = button('Give up', () => giveUp(backPath), { class: 'danger' })
   const smaller = button('A−', () => setSize(sizeIndex - 1), { class: 'text size', 'aria-label': 'Smaller text' })
   const larger = button('A+', () => setSize(sizeIndex + 1), { class: 'text size', 'aria-label': 'Larger text' })
 
@@ -90,11 +154,33 @@ export async function playView({ code }) {
     article,
   )
 
+  prefetchArticle(route.start.key)
+  prefetchArticle(route.target.key)
+
+  const countdownMs = ctx.countdownAt?.toMillis ? ctx.countdownAt.toMillis() - Date.now() : 0
+  if (countdownMs > 0) {
+    const count = el('p', { class: 'done', role: 'status' })
+    status.replaceChildren(el('div', { class: 'card stack-small' }, el('p', { class: 'muted' }, 'Everyone starts together in'), count))
+    await new Promise((resolve) => {
+      const update = () => {
+        const left = Math.ceil((ctx.countdownAt.toMillis() - Date.now()) / 1000)
+        count.textContent = String(Math.max(0, left))
+        if (left <= 0) {
+          clearInterval(cd)
+          resolve()
+        }
+      }
+      const cd = setInterval(update, 200)
+      update()
+    })
+    status.replaceChildren()
+  }
+
   let run
   try {
-    run = await startRun(code, user.uid, name, route.start.key)
+    run = await startRun(arena, user.uid, name, route.start.key)
   } catch {
-    go(`/s/${code}`)
+    go(backPath)
     return view(el('div'))
   }
   if (run.attempt > 1) attemptOut.textContent = `Attempt ${run.attempt}`
@@ -109,10 +195,10 @@ export async function playView({ code }) {
   }
 
   load(route.start.key)
-  prefetchArticle(route.target.key)
 
   async function load(key) {
     timer.pause()
+    const loadStart = performance.now()
     article.setAttribute('aria-busy', 'true')
     const loading = el('p', { class: 'muted', role: 'status' }, 'Loading')
     status.replaceChildren(loading)
@@ -123,6 +209,7 @@ export async function playView({ code }) {
       const page = await fetchArticle(key)
       clearTimeout(slow)
       if (finished) return
+      loadMs += performance.now() - loadStart
       currentKey = page.key
       path[path.length - 1] = page.key
       titleOut.textContent = page.title
@@ -135,6 +222,7 @@ export async function playView({ code }) {
         await finish()
         return
       }
+      if (clicks > 0) progressRun(arena, run.id, { clicks, path, currentKey, loadMs: Math.round(loadMs) }).catch(() => {})
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
           if (finished) return
@@ -171,22 +259,23 @@ export async function playView({ code }) {
   function record(done) {
     const ms = Math.round(timer.elapsed())
     const current = { uid: user.uid, attempt: run.attempt, name, clicks, ms, done, quit: !done }
-    const best = playerRows([...run.previous, current], session.scoring)[0].best
+    const best = playerRows([...run.previous, current], scoring)[0].best
     return recordRun(
-      code,
+      arena,
       run.id,
       user.uid,
       { name, clicks, ms, path, done },
       {
-        mode: session.mode,
-        scoring: session.scoring,
-        difficulty: normaliseDifficulty(session.difficulty),
+        mode: ctx.mode,
+        scoring,
+        difficulty: normaliseDifficulty(ctx.difficulty),
         start: route.start.title,
         target: route.target.title,
         clicks: best.clicks,
         ms: best.ms,
         done: Boolean(best.done),
         attempts: run.attempt,
+        ...ctx.history,
       },
     )
   }
@@ -200,19 +289,20 @@ export async function playView({ code }) {
     status.replaceChildren(el('p', { class: 'muted', role: 'status' }, 'Saving'))
     try {
       await record(true)
-      const board = createBoard(session, user.uid)
-      const stopRuns = watchRuns(code, (runs) => board.update({ runs }), () => {})
-      const stopPlayers = watchPlayers(code, (players) => board.update({ players }), () => {})
+      const board = createBoard({ ...ctx.board, mode: ctx.mode === 'solo' ? 'solo' : 'multi' }, user.uid)
+      const stopRuns = watchRuns(arena, (runs) => board.update({ runs }), () => {})
+      const stopPlayers = arena.kind === 'daily' ? () => {} : watchPlayers(arena.code, (players) => board.update({ players }), () => {})
       stopBoard = () => {
         stopRuns()
         stopPlayers()
+        board.dispose()
       }
       status.replaceChildren(
         el(
           'section',
           { class: 'card stack' },
           el('p', { class: 'done', role: 'status' }, `Done: ${result()}.`),
-          el('p', { class: 'row' }, link('Session page', `/s/${code}`, { class: 'button primary' }), link('Home', '/', { class: 'button secondary' })),
+          el('p', { class: 'row' }, link(arena.kind === 'daily' ? 'Challenge page' : 'Session page', backPath, { class: 'button primary' }), link('Home', '/', { class: 'button secondary' })),
           board.el,
         ),
       )

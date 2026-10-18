@@ -6,8 +6,16 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function me() {
+      return request.auth.uid;
+    }
+
     function sessionDoc(code) {
       return get(/databases/$(database)/documents/sessions/$(code)).data;
+    }
+
+    function roundDoc(code, n) {
+      return get(/databases/$(database)/documents/sessions/$(code)/rounds/$(n)).data;
     }
 
     function validPage(page) {
@@ -17,11 +25,12 @@ service cloud.firestore {
         && page.title is string && page.title.size() > 0 && page.title.size() <= 300;
     }
 
+    function tier(v) {
+      return v in ['easy', 'medium', 'hard', 'any', 'typed'];
+    }
+
     function validDifficulty(v) {
-      return v is map
-        && v.keys().hasOnly(['start', 'target'])
-        && v.start in ['easy', 'medium', 'hard', 'any', 'typed']
-        && v.target in ['easy', 'medium', 'hard', 'any', 'typed'];
+      return v is map && v.keys().hasOnly(['start', 'target']) && tier(v.start) && tier(v.target);
     }
 
     function validSession(d) {
@@ -29,7 +38,7 @@ service cloud.firestore {
         && d.mode in ['solo', 'multi']
         && d.scoring in ['time', 'clicks']
         && validDifficulty(d.difficulty)
-        && d.host == request.auth.uid
+        && d.host == me()
         && d.hideStart is bool && d.hideTarget is bool
         && (d.hideStart ? d.start == null : validPage(d.start))
         && (d.hideTarget ? d.target == null : validPage(d.target))
@@ -38,17 +47,77 @@ service cloud.firestore {
         && (d.startedAt == null || d.startedAt == request.time);
     }
 
+    function roomSettingsValid(d) {
+      return d.rounds is int && d.rounds >= 1 && d.rounds <= 10
+        && d.scoring in ['time', 'clicks']
+        && d.system in ['points', 'wins', 'golf', 'time', 'independent']
+        && d.chooserPolicy in ['host', 'rotate', 'prevWinner', 'prevLoser', 'leader', 'last']
+        && d.chooserPicks in ['articles', 'both']
+        && d.split is bool
+        && d.startMode in ['whenever', 'together'];
+    }
+
+    function validRoom(d) {
+      return d.keys().hasOnly(['version', 'mode', 'host', 'status', 'currentRound', 'rounds', 'scoring', 'system', 'chooserPolicy', 'chooserPicks', 'split', 'startMode', 'createdAt'])
+        && d.version == 2
+        && d.mode == 'multi'
+        && d.host == me()
+        && d.status == 'setup'
+        && d.currentRound == 0
+        && roomSettingsValid(d)
+        && d.createdAt == request.time;
+    }
+
+    function validRoomUpdate(before, after) {
+      return after.keys().hasOnly(['version', 'mode', 'host', 'status', 'currentRound', 'rounds', 'scoring', 'system', 'chooserPolicy', 'chooserPicks', 'split', 'startMode', 'createdAt'])
+        && after.version == 2
+        && after.mode == before.mode
+        && after.host == before.host
+        && after.createdAt == before.createdAt
+        && after.status in ['setup', 'playing', 'finished']
+        && after.currentRound is int && after.currentRound >= 0 && after.currentRound <= 10
+        && roomSettingsValid(after)
+        && (before.status == 'setup' || (after.rounds >= before.rounds && after.scoring == before.scoring && after.system == before.system));
+    }
+
+    function roundKeys() {
+      return ['n', 'status', 'chooser', 'startChooser', 'targetChooser', 'scoring', 'difficulty', 'start', 'target', 'startSet', 'targetSet', 'hideStart', 'hideTarget', 'createdAt', 'openedAt', 'countdownAt', 'closedAt'];
+    }
+
+    function validRound(d) {
+      return d.keys().hasOnly(roundKeys())
+        && d.n is int && d.n >= 1 && d.n <= 10
+        && d.status in ['choosing', 'ready', 'open', 'closed']
+        && d.chooser is string && d.startChooser is string && d.targetChooser is string
+        && d.scoring in ['time', 'clicks']
+        && validDifficulty(d.difficulty)
+        && (d.start == null || validPage(d.start))
+        && (d.target == null || validPage(d.target))
+        && d.startSet is bool && d.targetSet is bool
+        && d.hideStart is bool && d.hideTarget is bool
+        && (d.openedAt == null || d.openedAt is timestamp)
+        && (d.countdownAt == null || d.countdownAt is timestamp)
+        && (d.closedAt == null || d.closedAt is timestamp);
+    }
+
+    function isChooser(code, n, d) {
+      return me() == d.chooser || me() == d.startChooser || me() == d.targetChooser || me() == sessionDoc(code).host;
+    }
+
     function validRun(d) {
-      return d.keys().hasOnly(['uid', 'attempt', 'name', 'clicks', 'ms', 'path', 'done', 'quit', 'startedAt', 'finishedAt'])
+      return d.keys().hasOnly(['uid', 'attempt', 'name', 'clicks', 'ms', 'path', 'currentKey', 'loadMs', 'done', 'quit', 'startedAt', 'updatedAt', 'finishedAt'])
         && d.uid is string
         && d.attempt is int && d.attempt >= 1
         && d.name is string && d.name.size() >= 1 && d.name.size() <= 32
         && d.clicks is int && d.clicks >= 0
         && d.ms is number && d.ms >= 0
         && d.path is list && d.path.size() <= 500
+        && (!('currentKey' in d) || d.currentKey is string)
+        && (!('loadMs' in d) || (d.loadMs is number && d.loadMs >= 0))
         && d.done is bool
         && d.quit is bool
         && (d.startedAt == null || d.startedAt is timestamp)
+        && (!('updatedAt' in d) || d.updatedAt is timestamp)
         && (d.finishedAt == null || d.finishedAt is timestamp);
     }
 
@@ -57,18 +126,64 @@ service cloud.firestore {
         && (d.path.size() == 500 ? d.clicks >= 499 : d.clicks == d.path.size() - 1);
     }
 
+    function runCreate(runId, d) {
+      return validRun(d)
+        && d.uid == me()
+        && runId == me() + '-' + string(d.attempt)
+        && d.done == false && d.quit == false
+        && d.clicks == 0 && d.ms == 0
+        && d.path.size() == 1
+        && d.startedAt == request.time
+        && d.finishedAt == null;
+    }
+
+    function runProgress(before, after) {
+      return before.uid == me()
+        && before.done == false && before.quit == false
+        && after.done == false && after.quit == false
+        && validRun(after)
+        && after.diff(before).affectedKeys().hasOnly(['clicks', 'path', 'currentKey', 'loadMs', 'updatedAt'])
+        && after.clicks == after.path.size() - 1
+        && after.updatedAt == request.time;
+    }
+
+    function runFinish(before, after) {
+      return before.uid == me()
+        && before.done == false && before.quit == false
+        && validRun(after)
+        && after.uid == before.uid
+        && after.attempt == before.attempt
+        && after.startedAt == before.startedAt
+        && after.finishedAt == request.time
+        && (after.done || after.quit)
+        && honestResult(after, before);
+    }
+
     function validHistory(d) {
-      return d.keys().hasOnly(['mode', 'scoring', 'difficulty', 'start', 'target', 'clicks', 'ms', 'done', 'attempts', 'at'])
-        && validDifficulty(d.difficulty)
-        && d.attempts is int && d.attempts >= 1
-        && d.mode in ['solo', 'multi']
+      return d.keys().hasOnly(['mode', 'scoring', 'difficulty', 'start', 'target', 'clicks', 'ms', 'done', 'attempts', 'at', 'kind', 'code', 'round', 'date', 'slug'])
+        && d.mode in ['solo', 'multi', 'daily']
         && d.scoring in ['time', 'clicks']
+        && validDifficulty(d.difficulty)
         && d.start is string && d.start.size() <= 300
         && d.target is string && d.target.size() <= 300
         && d.clicks is int && d.clicks >= 0
         && d.ms is number && d.ms >= 0
         && d.done is bool
-        && d.at == request.time;
+        && d.attempts is int && d.attempts >= 1
+        && d.at == request.time
+        && (!('kind' in d) || d.kind in ['session', 'round', 'daily'])
+        && (!('code' in d) || d.code is string)
+        && (!('round' in d) || d.round is int)
+        && (!('date' in d) || d.date is string)
+        && (!('slug' in d) || d.slug is string);
+    }
+
+    function pad(n) {
+      return n < 10 ? '0' + string(n) : string(n);
+    }
+
+    function todayKey() {
+      return string(request.time.year()) + '-' + pad(request.time.month()) + '-' + pad(request.time.day());
     }
 
     match /sessions/{code} {
@@ -76,31 +191,37 @@ service cloud.firestore {
       allow list: if false;
       allow create: if signedIn()
         && code.matches('^[A-HJ-NP-Z2-9]{6}$')
-        && validSession(request.resource.data);
+        && (validSession(request.resource.data) || validRoom(request.resource.data));
       allow update: if signedIn()
-        && resource.data.host == request.auth.uid
-        && resource.data.status == 'lobby'
-        && request.resource.data.status == 'open'
-        && request.resource.data.startedAt == request.time
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'startedAt']);
+        && resource.data.host == me()
+        && (
+          (resource.data.version == 2 && validRoomUpdate(resource.data, request.resource.data))
+          || (
+            !('version' in resource.data)
+            && resource.data.status == 'lobby'
+            && request.resource.data.status == 'open'
+            && request.resource.data.startedAt == request.time
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'startedAt'])
+          )
+        );
       allow delete: if false;
 
       match /private/route {
         allow get: if signedIn()
-          && (sessionDoc(code).host == request.auth.uid || sessionDoc(code).status == 'open');
+          && (sessionDoc(code).host == me() || sessionDoc(code).status == 'open');
         allow list: if false;
         allow create: if signedIn()
           && request.resource.data.keys().hasOnly(['start', 'target'])
           && validPage(request.resource.data.start)
           && validPage(request.resource.data.target)
-          && getAfter(/databases/$(database)/documents/sessions/$(code)).data.host == request.auth.uid;
+          && getAfter(/databases/$(database)/documents/sessions/$(code)).data.host == me();
         allow update, delete: if false;
       }
 
       match /players/{uid} {
         allow read: if signedIn();
         allow create, update: if signedIn()
-          && request.auth.uid == uid
+          && me() == uid
           && request.resource.data.keys().hasOnly(['name', 'joinedAt'])
           && request.resource.data.name is string
           && request.resource.data.name.size() >= 1
@@ -111,36 +232,98 @@ service cloud.firestore {
 
       match /runs/{runId} {
         allow read: if signedIn();
+        allow create: if signedIn() && sessionDoc(code).status == 'open' && runCreate(runId, request.resource.data);
+        allow update: if signedIn() && (runProgress(resource.data, request.resource.data) || runFinish(resource.data, request.resource.data));
+        allow delete: if false;
+      }
+
+      match /rounds/{n} {
+        allow read: if signedIn();
         allow create: if signedIn()
-          && validRun(request.resource.data)
-          && request.resource.data.uid == request.auth.uid
-          && runId == request.auth.uid + '-' + string(request.resource.data.attempt)
-          && sessionDoc(code).status == 'open'
-          && request.resource.data.done == false
-          && request.resource.data.quit == false
-          && request.resource.data.clicks == 0
-          && request.resource.data.ms == 0
-          && request.resource.data.path.size() == 1
-          && request.resource.data.startedAt == request.time
-          && request.resource.data.finishedAt == null;
+          && sessionDoc(code).host == me()
+          && validRound(request.resource.data)
+          && request.resource.data.status == 'choosing'
+          && string(request.resource.data.n) == n
+          && request.resource.data.createdAt == request.time;
         allow update: if signedIn()
-          && resource.data.uid == request.auth.uid
-          && resource.data.done == false
-          && resource.data.quit == false
-          && validRun(request.resource.data)
-          && request.resource.data.uid == resource.data.uid
-          && request.resource.data.attempt == resource.data.attempt
-          && request.resource.data.startedAt == resource.data.startedAt
-          && request.resource.data.finishedAt == request.time
-          && (request.resource.data.done || request.resource.data.quit)
-          && honestResult(request.resource.data, resource.data);
+          && validRound(request.resource.data)
+          && request.resource.data.n == resource.data.n
+          && request.resource.data.createdAt == resource.data.createdAt
+          && (
+            sessionDoc(code).host == me()
+            || (
+              isChooser(code, n, resource.data)
+              && request.resource.data.chooser == resource.data.chooser
+              && request.resource.data.startChooser == resource.data.startChooser
+              && request.resource.data.targetChooser == resource.data.targetChooser
+              && request.resource.data.status in ['choosing', 'ready', 'open']
+            )
+            || (
+              request.resource.data.status == 'closed'
+              && resource.data.status == 'open'
+              && resource.data.openedAt != null
+              && request.time.toMillis() - resource.data.openedAt.toMillis() > 86400000
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'closedAt'])
+            )
+          );
+        allow delete: if false;
+
+        match /private/route {
+          allow get: if signedIn()
+            && (roundDoc(code, n).status in ['open', 'closed'] || isChooser(code, n, roundDoc(code, n)));
+          allow list: if false;
+          allow create, update: if signedIn()
+            && isChooser(code, n, roundDoc(code, n))
+            && request.resource.data.keys().hasOnly(['start', 'target'])
+            && (!('start' in request.resource.data) || validPage(request.resource.data.start))
+            && (!('target' in request.resource.data) || validPage(request.resource.data.target));
+          allow delete: if false;
+        }
+
+        match /runs/{runId} {
+          allow read: if signedIn();
+          allow create: if signedIn() && roundDoc(code, n).status == 'open' && runCreate(runId, request.resource.data);
+          allow update: if signedIn() && (runProgress(resource.data, request.resource.data) || runFinish(resource.data, request.resource.data));
+          allow delete: if false;
+        }
+      }
+    }
+
+    match /daily/{date}/challenges/{slug} {
+      allow get, list: if signedIn();
+      allow create: if signedIn()
+        && date == todayKey()
+        && slug in ['easy-time', 'easy-clicks', 'medium-time', 'medium-clicks', 'hard-time', 'hard-clicks', 'any-time', 'any-clicks']
+        && request.resource.data.keys().hasOnly(['date', 'slug', 'scoring', 'difficulty', 'createdAt'])
+        && request.resource.data.date == date
+        && request.resource.data.slug == slug
+        && request.resource.data.scoring in ['time', 'clicks']
+        && validDifficulty(request.resource.data.difficulty)
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+
+      match /private/route {
+        allow get: if signedIn();
+        allow list: if false;
+        allow create: if signedIn()
+          && getAfter(/databases/$(database)/documents/daily/$(date)/challenges/$(slug)).data.createdAt == request.time
+          && request.resource.data.keys().hasOnly(['start', 'target'])
+          && validPage(request.resource.data.start)
+          && validPage(request.resource.data.target);
+        allow update, delete: if false;
+      }
+
+      match /runs/{runId} {
+        allow read: if signedIn();
+        allow create: if signedIn() && runCreate(runId, request.resource.data);
+        allow update: if signedIn() && (runProgress(resource.data, request.resource.data) || runFinish(resource.data, request.resource.data));
         allow delete: if false;
       }
     }
 
-    match /users/{uid}/history/{code} {
-      allow read: if signedIn() && request.auth.uid == uid;
-      allow create, update: if signedIn() && request.auth.uid == uid && validHistory(request.resource.data);
+    match /users/{uid}/history/{id} {
+      allow read: if signedIn() && me() == uid;
+      allow create, update: if signedIn() && me() == uid && validHistory(request.resource.data);
       allow delete: if false;
     }
 

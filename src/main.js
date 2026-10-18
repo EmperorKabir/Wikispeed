@@ -1,6 +1,7 @@
 import { completeRedirect, ensureSignedIn } from './auth.js'
 import { route, startRouter } from './router.js'
 import { el, notice } from './ui.js'
+import { dailyChallengeView, dailyIndexView } from './views/daily.js'
 import { historyView } from './views/history.js'
 import { homeView } from './views/home.js'
 import { privacyView, termsView } from './views/legal.js'
@@ -16,6 +17,11 @@ route('/multi', multiView)
 route('/new/:mode', setupView)
 route('/s/:code', sessionView)
 route('/play/:code', playView)
+route('/play/:code/:n', playView)
+route('/daily', dailyIndexView)
+route('/daily/:date', dailyIndexView)
+route('/daily/:date/:slug', dailyChallengeView)
+route('/daily/:date/:slug/play', playView)
 route('/history', historyView)
 route('/privacy', privacyView)
 route('/terms', termsView)

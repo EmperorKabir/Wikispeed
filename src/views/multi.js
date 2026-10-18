@@ -1,6 +1,8 @@
+import { currentUser } from '../auth.js'
 import { isValidCode, normaliseCode } from '../code.js'
+import { createRoom } from '../db.js'
 import { go } from '../router.js'
-import { back, el, link, notice, view } from '../ui.js'
+import { back, button, el, notice, view } from '../ui.js'
 
 export function multiView() {
   const error = el('div')
@@ -14,7 +16,7 @@ export function multiView() {
     spellcheck: 'false',
     maxlength: '8',
     placeholder: 'ABC234',
-    'aria-label': 'Session code',
+    'aria-label': 'Room code',
   })
 
   const joinForm = el(
@@ -35,17 +37,27 @@ export function multiView() {
     el('button', { type: 'submit', class: 'secondary' }, 'Join'),
   )
 
+  const createButton = button('Create a room', onCreate, { class: 'choice' })
+
+  async function onCreate() {
+    error.replaceChildren()
+    createButton.disabled = true
+    try {
+      const code = await createRoom(currentUser().uid)
+      go(`/s/${code}`)
+    } catch (err) {
+      error.replaceChildren(notice(`Could not create a room: ${err.message}`, 'error'))
+      createButton.disabled = false
+    }
+  }
+
   const root = el(
     'div',
     { class: 'stack' },
     back(),
     el('h1', {}, 'Multiplayer'),
-    el('p', { class: 'muted' }, 'Create a game and share its code, or join with a code from a friend.'),
-    el(
-      'div',
-      { class: 'choices' },
-      link([el('strong', {}, 'Create a game'), el('small', {}, 'You pick the articles and share the code')], '/new/multi', { class: 'choice' }),
-    ),
+    el('p', { class: 'muted' }, 'Create a room to get a code straight away, then set it up while friends join. Or join with a code from a friend.'),
+    el('div', { class: 'choices' }, createButton),
     el('section', { class: 'card stack' }, el('fieldset', {}, el('legend', {}, 'Join with a code'), joinForm), error),
   )
 

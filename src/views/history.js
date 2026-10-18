@@ -1,5 +1,5 @@
 import { currentUser, isGoogleUser } from '../auth.js'
-import { getSession, watchHistory, watchPlayers, watchRuns } from '../db.js'
+import { arenaPath, getDaily, getRound, getSession, playPath, todayKey, watchHistory, watchPlayers, watchRuns } from '../db.js'
 import { go } from '../router.js'
 import { SCORING, formatMs } from '../score.js'
 import { back, button, el, link, notice, view } from '../ui.js'
@@ -42,30 +42,52 @@ export function historyView() {
     () => list.replaceChildren(notice('Could not load history.', 'error')),
   )
 
-  function closeBoard(code) {
-    const entry = open.get(code)
+  function closeBoard(id) {
+    const entry = open.get(id)
     if (!entry) return
     entry.stop()
     entry.slot.replaceChildren()
-    open.delete(code)
+    open.delete(id)
   }
 
-  async function openBoard(code, slot, toggle) {
+  function arenaOf(e) {
+    if (e.kind === 'daily') return { kind: 'daily', date: e.date, slug: e.slug }
+    if (e.kind === 'round') return { kind: 'round', code: e.code, n: e.round }
+    return { kind: 'session', code: e.code ?? e.id }
+  }
+
+  async function boardContext(arena) {
+    if (arena.kind === 'daily') {
+      const challenge = await getDaily(arena.date, arena.slug)
+      return challenge ? { session: { mode: 'multi', status: 'open', scoring: challenge.scoring }, players: false } : null
+    }
+    const session = await getSession(arena.code)
+    if (!session) return null
+    if (arena.kind === 'round') {
+      const round = await getRound(arena.code, arena.n)
+      return round ? { session: { mode: 'multi', status: 'open', scoring: round.scoring }, players: true } : null
+    }
+    return { session, players: true }
+  }
+
+  async function openBoard(e, slot, toggle) {
     toggle.disabled = true
+    const arena = arenaOf(e)
     try {
-      const session = await getSession(code)
-      if (!session) {
-        slot.replaceChildren(el('p', { class: 'muted small' }, 'This session no longer exists.'))
+      const ctx = await boardContext(arena)
+      if (!ctx) {
+        slot.replaceChildren(el('p', { class: 'muted small' }, 'This game no longer exists.'))
         return
       }
-      const board = createBoard(session, user.uid)
-      const stopRuns = watchRuns(code, (runs) => board.update({ runs }), () => {})
-      const stopPlayers = watchPlayers(code, (players) => board.update({ players }), () => {})
-      open.set(code, {
+      const board = createBoard(ctx.session, user.uid)
+      const stopRuns = watchRuns(arena, (runs) => board.update({ runs }), () => {})
+      const stopPlayers = ctx.players ? watchPlayers(arena.code, (players) => board.update({ players }), () => {}) : () => {}
+      open.set(e.id, {
         slot,
         stop: () => {
           stopRuns()
           stopPlayers()
+          board.dispose()
         },
       })
       slot.replaceChildren(el('div', { class: 'card' }, board.el))
@@ -81,28 +103,31 @@ export function historyView() {
     const when = e.at?.toDate ? dateFormat.format(e.at.toDate()) : ''
     const result = timed ? formatMs(e.ms ?? 0) : `${e.clicks ?? 0} ${e.clicks === 1 ? 'click' : 'clicks'}`
     const slot = el('div', { class: 'board-slot' })
-    const isOpen = open.has(e.code)
+    const arena = arenaOf(e)
+    const isOpen = open.has(e.id)
     const toggle = button(isOpen ? 'Hide leaderboard' : 'Leaderboard', async () => {
-      if (open.has(e.code)) {
-        closeBoard(e.code)
+      if (open.has(e.id)) {
+        closeBoard(e.id)
         toggle.textContent = 'Leaderboard'
         toggle.setAttribute('aria-expanded', 'false')
         return
       }
       toggle.textContent = 'Hide leaderboard'
       toggle.setAttribute('aria-expanded', 'true')
-      await openBoard(e.code, slot, toggle)
+      await openBoard(e, slot, toggle)
     }, { class: 'text small-button', 'aria-expanded': String(isOpen) })
     if (isOpen) {
-      const entry = open.get(e.code)
+      const entry = open.get(e.id)
       const nodes = [...entry.slot.childNodes]
       entry.slot = slot
       slot.replaceChildren(...nodes)
     }
+    const replayable = arena.kind !== 'daily' || arena.date === todayKey()
+    const label = e.kind === 'daily' ? `Daily ${e.date}: ` : e.kind === 'round' ? `Round ${e.round}: ` : ''
     return el(
       'li',
       {},
-      el('div', { class: 'row between' }, link(`${e.start} → ${e.target}`, `/s/${e.code}`), el('span', { class: 'muted small' }, when)),
+      el('div', { class: 'row between' }, link(`${label}${e.start} → ${e.target}`, arenaPath(arena)), el('span', { class: 'muted small' }, when)),
       el(
         'div',
         { class: 'row between' },
@@ -113,10 +138,15 @@ export function historyView() {
           el(
             'span',
             { class: 'muted small' },
-            `${e.mode === 'solo' ? 'Solo' : 'Multiplayer'} · ${SCORING[e.scoring]?.label ?? ''}${describeDifficulty(e.difficulty) ? ` · ${describeDifficulty(e.difficulty)}` : ''}${e.attempts > 1 ? ` · ${e.attempts} attempts` : ''}`,
+            `${e.mode === 'solo' ? 'Solo' : e.mode === 'daily' ? 'Daily' : 'Multiplayer'} · ${SCORING[e.scoring]?.label ?? ''}${describeDifficulty(e.difficulty) ? ` · ${describeDifficulty(e.difficulty)}` : ''}${e.attempts > 1 ? ` · ${e.attempts} attempts` : ''}`,
           ),
         ),
-        el('span', { class: 'row' }, toggle, button('Play again', () => go(`/play/${e.code}`), { class: 'secondary small-button' })),
+        el(
+          'span',
+          { class: 'row' },
+          toggle,
+          replayable ? button('Play again', () => go(playPath(arena)), { class: 'secondary small-button' }) : null,
+        ),
       ),
       slot,
     )
@@ -124,6 +154,6 @@ export function historyView() {
 
   return view(root, () => {
     stop()
-    for (const code of [...open.keys()]) closeBoard(code)
+    for (const id of [...open.keys()]) closeBoard(id)
   })
 }
