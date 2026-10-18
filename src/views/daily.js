@@ -70,15 +70,17 @@ export async function dailyIndexView({ date } = {}) {
     const { tier } = slugParts(slug)
     const play = button('Play', async () => {
       play.disabled = true
+      play.textContent = have.has(slug) ? 'Opening…' : 'Setting up…'
       try {
         const challenge = await ensureDaily(day, slug, () => makeRoute(tier))
         if (!challenge) throw new Error('Could not set up the challenge.')
         go(playPath({ kind: 'daily', date: day, slug }))
       } catch (err) {
         error.replaceChildren(notice(err.message, 'error'))
+        play.textContent = 'Play'
         play.disabled = false
       }
-    }, { class: 'primary small-button', disabled: !isToday || !displayName() })
+    }, { class: 'primary small-button', disabled: !isToday || !displayName(), title: displayName() ? null : 'Save a name first' })
     const { scoring } = slugParts(slug)
     return el(
       'div',

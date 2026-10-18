@@ -361,6 +361,10 @@ legend {
   gap: 0.75rem;
 }
 
+.choices > :last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
 .choice {
   position: relative;
   display: flex;
