@@ -318,6 +318,8 @@ legend {
 .suggestion {
   width: 100%;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch;
   gap: 0.125rem;
   justify-items: start;
   text-align: left;
