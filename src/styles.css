@@ -356,6 +356,14 @@ legend {
   gap: 0.5rem;
 }
 
+.choices.quick {
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+}
+
+.choices.quick button {
+  min-height: 3.25rem;
+}
+
 button.tier {
   min-height: 36px;
   padding: 0.25rem 0.75rem;

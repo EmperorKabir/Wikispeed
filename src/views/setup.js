@@ -27,41 +27,36 @@ export function setupView({ mode }) {
     return root.querySelector('input[name="scoring"]:checked').value
   }
 
-  const start = picker('Start article', 'start', updateQuickLabel)
-  const finish = picker('Finish article', 'finish', updateQuickLabel)
+  const start = picker('Start article', 'start')
+  const finish = picker('Finish article', 'finish')
 
   const createButton = button('Create', onCreate, { class: 'primary' })
-  const quickButton = button('', onQuick, { class: 'primary' })
+  const quickButtons = Object.entries(DIFFICULTIES).map(([key, { label }]) =>
+    button(`${label} → ${label}`, () => onQuick(key), { class: 'primary', title: `Two random ${label.toLowerCase()} articles` }),
+  )
 
-  function quickTiers() {
-    return [start.lastTier() ?? 'medium', finish.lastTier() ?? 'medium']
+  function setBusy(busy) {
+    createButton.disabled = busy
+    for (const b of quickButtons) b.disabled = busy
   }
 
-  function updateQuickLabel() {
-    const [a, b] = quickTiers()
-    quickButton.textContent = `Single Click: Fully random (${DIFFICULTIES[a].label} → ${DIFFICULTIES[b].label}), let's go!`
-  }
-
-  async function twoRandomArticles() {
-    const [a, b] = quickTiers()
-    const first = await randomArticle(a)
-    let second = await randomArticle(b)
-    for (let i = 0; i < 3 && second.key === first.key; i++) second = await randomArticle(b)
+  async function twoRandomArticles(tier) {
+    const first = await randomArticle(tier)
+    let second = await randomArticle(tier)
+    for (let i = 0; i < 3 && second.key === first.key; i++) second = await randomArticle(tier)
     return [first, second]
   }
 
-  async function onQuick() {
+  async function onQuick(tier) {
     error.replaceChildren()
-    quickButton.disabled = true
-    createButton.disabled = true
+    setBusy(true)
     try {
-      const [from, to] = await twoRandomArticles()
-      const [a, b] = quickTiers()
+      const [from, to] = await twoRandomArticles(tier)
       const code = await createSession({
         uid: currentUser().uid,
         mode,
         scoring: scoring(),
-        difficulty: { start: a, target: b },
+        difficulty: { start: tier, target: tier },
         start: { key: from.key, title: from.title },
         target: { key: to.key, title: to.title },
         hideStart: start.hidden(),
@@ -70,8 +65,7 @@ export function setupView({ mode }) {
       go(mode === 'solo' ? `/play/${code}` : `/s/${code}`)
     } catch (err) {
       error.replaceChildren(notice(`Could not start a random game: ${err.message}`, 'error'))
-      quickButton.disabled = false
-      createButton.disabled = false
+      setBusy(false)
     }
   }
 
@@ -120,17 +114,15 @@ export function setupView({ mode }) {
     error,
     createButton,
     el('p', { class: 'muted or' }, 'or'),
-    quickButton,
+    el('fieldset', {}, el('legend', {}, "Single click, fully random, let's go!"), el('div', { class: 'choices quick' }, quickButtons)),
   )
-  updateQuickLabel()
 
   return view(root)
 }
 
-function picker(label, name, onTierChange) {
+function picker(label, name) {
   let page = null
   let tier = 'typed'
-  let lastTier = null
   let debounce = null
   let seq = 0
   let suggestSeq = 0
@@ -245,9 +237,7 @@ function picker(label, name, onTierChange) {
       if (mine !== seq) return
       page = found
       tier = key
-      lastTier = key
       markTier(key)
-      onTierChange()
       refresh()
     } catch (err) {
       if (mine === seq) status.textContent = err.message
@@ -291,7 +281,6 @@ function picker(label, name, onTierChange) {
     value: () => page,
     hidden: () => hide.checked,
     tier: () => tier,
-    lastTier: () => lastTier,
     settled: () => pending,
   }
 }
