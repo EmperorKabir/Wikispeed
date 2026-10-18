@@ -95,8 +95,9 @@ export function historyView() {
     }, { class: 'text small-button', 'aria-expanded': String(isOpen) })
     if (isOpen) {
       const entry = open.get(e.code)
+      const nodes = [...entry.slot.childNodes]
       entry.slot = slot
-      slot.replaceChildren(...entry.slot.childNodes)
+      slot.replaceChildren(...nodes)
     }
     return el(
       'li',
