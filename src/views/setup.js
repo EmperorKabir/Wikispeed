@@ -20,7 +20,7 @@ export function setupView({ mode }) {
       { class: 'choice' },
       el('input', { type: 'radio', name: 'scoring', value: key, checked: key === 'time' }),
       el('strong', {}, label),
-      el('small', {}, key === 'time' ? 'Fastest finish wins' : 'Fewest clicks wins'),
+      el('small', {}, key === 'time' ? 'Race the clock' : 'Use as few clicks as you can'),
     ),
   )
 
