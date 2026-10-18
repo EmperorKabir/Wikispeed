@@ -5,6 +5,7 @@ function fakeWikipedia(pages, search = []) {
   return vi.fn(async (url) => {
     const u = String(url)
     if (u.includes('/search/title')) return { ok: true, status: 200, json: async () => ({ pages: search }) }
+    if (u.includes('/search/page')) return { ok: true, status: 200, json: async () => ({ pages: [] }) }
     const key = decodeURIComponent(u.split('/page/summary/')[1])
     const page = pages[key]
     if (!page) return { ok: false, status: 404, json: async () => ({}) }
@@ -25,7 +26,7 @@ describe('resolveTitle', () => {
     const fetch = fakeWikipedia({ 'Tom_&_Jerry': summary('Tom and Jerry') })
     vi.stubGlobal('fetch', fetch)
     expect((await resolveTitle('tom & jerry')).key).toBe('Tom_and_Jerry')
-    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(fetch.mock.calls.filter(([u]) => String(u).includes('/page/summary/'))).toHaveLength(2)
   })
   it('falls back to the first standard search result', async () => {
     vi.stubGlobal(

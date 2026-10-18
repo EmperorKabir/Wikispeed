@@ -156,15 +156,27 @@ export async function randomArticle(tries = 6) {
   throw new Error('Could not find a random article')
 }
 
-export async function suggestTitles(query, limit = 5) {
-  const q = String(query).trim()
-  if (q.length < 2) return []
-  const data = await getJson(`${CORE}/search/title?q=${encodeURIComponent(q)}&limit=${limit}`)
+async function searchPages(kind, q, limit) {
+  const data = await getJson(`${CORE}/search/${kind}?q=${encodeURIComponent(q)}&limit=${limit}`).catch(() => null)
   return (data?.pages ?? []).map((page) => ({
     key: page.key,
     title: page.title,
     description: page.description ?? '',
   }))
+}
+
+export async function suggestTitles(query, limit = 6) {
+  const q = String(query).trim()
+  if (q.length < 2) return []
+  const [byTitle, byText] = await Promise.all([searchPages('title', q, limit), searchPages('page', q, limit)])
+  const seen = new Set()
+  const merged = []
+  for (const page of [...byTitle, ...byText]) {
+    if (seen.has(page.key)) continue
+    seen.add(page.key)
+    merged.push(page)
+  }
+  return merged.slice(0, limit)
 }
 
 export async function fetchArticle(key) {
