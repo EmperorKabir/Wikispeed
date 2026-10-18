@@ -832,6 +832,51 @@ button.tier[aria-pressed="true"] {
   font-family: var(--font) !important;
 }
 
+.wiki-paper .mw-collapsed > .mw-collapsible-content,
+.wiki-paper .mw-collapsed .mw-collapsible-content {
+  display: none;
+}
+
+.wiki-paper .mw-toggle {
+  min-height: 0;
+  min-width: 0;
+  margin-left: 0.5em;
+  padding: 0 0.4em;
+  font-size: 0.8em;
+  font-weight: 400;
+  border: 1px solid #a2a9b1;
+  border-radius: 3px;
+  background: #f8f9fa;
+  color: #3366cc;
+  box-shadow: none;
+  vertical-align: middle;
+}
+
+.wiki-paper .hlist ul,
+.wiki-paper .hlist ol {
+  margin: 0;
+  padding: 0;
+}
+
+.wiki-paper .hlist li,
+.wiki-paper .hlist ul,
+.wiki-paper .hlist ol {
+  display: inline;
+  list-style: none;
+}
+
+.wiki-paper .hlist li:not(:last-child)::after {
+  content: " \00b7 ";
+  font-weight: 700;
+}
+
+.wiki-paper .hlist dl,
+.wiki-paper .hlist dd,
+.wiki-paper .hlist dt {
+  display: inline;
+  margin: 0;
+}
+
 .wiki-paper p {
   margin: 0.5rem 0;
 }

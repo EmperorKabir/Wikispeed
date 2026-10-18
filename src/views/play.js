@@ -16,7 +16,7 @@ import { go } from '../router.js'
 import { formatMs, playerRows } from '../score.js'
 import { createTimer } from '../timer.js'
 import { button, el, link, notice, view } from '../ui.js'
-import { articleUrl, fetchArticle, loadWikiStyles, prefetchArticle } from '../wiki.js'
+import { articleUrl, enhanceCollapsibles, fetchArticle, loadWikiStyles, prefetchArticle } from '../wiki.js'
 import { createBoard } from './board.js'
 
 function normaliseDifficulty(value) {
@@ -215,6 +215,7 @@ export async function playView(params) {
       titleOut.textContent = page.title
       wikiLink.setAttribute('href', articleUrl(page.key))
       content.replaceChildren(...page.body.childNodes)
+      enhanceCollapsibles(content)
       status.replaceChildren()
       scrollTo(0, 0)
       if (page.key === route.target.key) {

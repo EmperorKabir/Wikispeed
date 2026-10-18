@@ -24,7 +24,7 @@ const BLOCKED_NAMESPACES = [
 const STRIP_SELECTOR = [
   'script', 'link', 'meta', 'noscript', 'iframe', 'object', 'embed', 'form', 'input', 'button',
   'audio', 'video', 'source', 'track', 'map', 'area',
-  '.mw-editsection', '.navbox', '.sistersitebox', '.ambox', '.mw-empty-elt',
+  '.mw-editsection', '.navbox', '.sistersitebox', '.ambox',
   '#coordinates', '.mw-indicators', '.noprint', '[typeof~="mw:Extension/indicator"]',
 ].join(',')
 

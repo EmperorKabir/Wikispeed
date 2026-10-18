@@ -131,7 +131,7 @@ describe('sanitiseArticle', () => {
     '<!doctype html><html><head><title>United Kingdom</title><link rel="stylesheet" href="data:text/css,">',
     '<meta charset="utf-8"><script>alert(1)</script></head>',
     '<body><section><h2>Head<span class="mw-editsection">[edit]</span></h2>',
-    '<style data-mw-deduplicate="TemplateStyles:r1">.infobox{border:1px solid}</style>',
+    '<span class="mw-empty-elt"><style data-mw-deduplicate="TemplateStyles:r1">.infobox{border:1px solid}</style></span>',
     '<p>See <a rel="mw:WikiLink" href="./England#History">England</a>, ',
     '<a rel="mw:WikiLink" href="./File:Map.png">map</a>, ',
     '<a rel="mw:ExtLink" href="https://example.com">site</a> and <a href="#Notes">notes</a>, ',
