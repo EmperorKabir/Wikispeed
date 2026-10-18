@@ -108,8 +108,21 @@ function headers() {
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+async function fetchWithTimeout(url, options = {}, ms = 15000) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), ms)
+  try {
+    return await fetch(url, { ...options, signal: controller.signal })
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('Wikipedia did not answer in time. Check your connection and try again.')
+    throw new Error('Could not reach Wikipedia. Check your connection and try again.')
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 async function getJson(url, retry = true) {
-  const response = await fetch(url, { headers: headers() })
+  const response = await fetchWithTimeout(url, { headers: headers() })
   if (response.status === 404) return null
   if (response.status === 429 && retry) {
     await wait(2500)
@@ -288,9 +301,9 @@ export async function suggestTitles(query, limit = 20) {
 const prefetched = new Map()
 
 async function downloadArticle(key) {
-  const response = await fetch(`${CORE}/page/${encodeURIComponent(key)}/html`, {
+  const response = await fetchWithTimeout(`${CORE}/page/${encodeURIComponent(key)}/html`, {
     headers: { 'Api-User-Agent': WIKI_UA },
-  })
+  }, 45000)
   if (response.status === 404) throw new Error('That article does not exist')
   if (!response.ok) throw new Error(`Wikipedia responded ${response.status}`)
   return { html: await response.text(), canonical: keyFromUrl(response.url) ?? key }
