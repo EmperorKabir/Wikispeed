@@ -220,6 +220,12 @@ button.primary,
   box-shadow: 0 8px 20px -10px var(--accent);
 }
 
+button.small-button {
+  min-height: 36px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.9375rem;
+}
+
 button.size {
   min-width: 2.5rem;
   padding-inline: 0.25rem;
@@ -526,6 +532,7 @@ legend {
 }
 
 .stat {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }

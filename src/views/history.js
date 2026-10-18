@@ -1,7 +1,8 @@
 import { currentUser, isGoogleUser } from '../auth.js'
 import { watchHistory } from '../db.js'
 import { SCORING, formatMs } from '../score.js'
-import { back, el, link, notice, view } from '../ui.js'
+import { go } from '../router.js'
+import { back, button, el, link, notice, view } from '../ui.js'
 
 const dateFormat = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',
@@ -48,13 +49,18 @@ export function historyView() {
       el('div', { class: 'row between' }, link(`${e.start} → ${e.target}`, `/s/${e.code}`), el('span', { class: 'muted small' }, when)),
       el(
         'div',
-        { class: 'row' },
-        el('span', { class: `outcome ${e.done ? 'ok' : 'quit'}` }, e.done ? `Best: ${result}` : 'Not finished'),
+        { class: 'row between' },
         el(
           'span',
-          { class: 'muted small' },
-          `${e.mode === 'solo' ? 'Solo' : 'Multiplayer'} · ${SCORING[e.scoring]?.label ?? ''}${e.attempts > 1 ? ` · ${e.attempts} attempts` : ''}`,
+          { class: 'row' },
+          el('span', { class: `outcome ${e.done ? 'ok' : 'quit'}` }, e.done ? `Best: ${result}` : 'Not finished'),
+          el(
+            'span',
+            { class: 'muted small' },
+            `${e.mode === 'solo' ? 'Solo' : 'Multiplayer'} · ${SCORING[e.scoring]?.label ?? ''}${e.attempts > 1 ? ` · ${e.attempts} attempts` : ''}`,
+          ),
         ),
+        button('Play again', () => go(`/play/${e.code}`), { class: 'secondary small-button' }),
       ),
     )
   }
