@@ -31,6 +31,14 @@ export function createPicker(label, name, { hideOption = true, legend = false } 
   })
   const status = el('p', { class: 'muted small', 'aria-live': 'polite' })
   const hide = el('input', { type: 'checkbox', name: `${name}-hide`, onchange: refresh })
+  const which = name.startsWith('start') ? 'start' : 'finish'
+  const hideWrap = el('label', { class: 'check', hidden: true }, hide, ` Keep random ${which} article secret until each player starts.`)
+
+  function syncHide() {
+    const random = Boolean(page) && tier !== 'typed'
+    hideWrap.hidden = !hideOption || !random
+    if (!random) hide.checked = false
+  }
 
   const tierButtons = Object.entries(DIFFICULTIES).map(([key, { label: tierLabel, hint }]) =>
     button(tierLabel, () => track(onRandom(key)), { class: 'tier', title: hint, 'aria-pressed': 'false', dataset: { tier: key } }),
@@ -66,6 +74,9 @@ export function createPicker(label, name, { hideOption = true, legend = false } 
 
   function onInput() {
     page = null
+    tier = 'typed'
+    markTier(null)
+    syncHide()
     status.textContent = ''
     clearTimeout(debounce)
     const q = input.value
@@ -128,6 +139,7 @@ export function createPicker(label, name, { hideOption = true, legend = false } 
   }
 
   function refresh() {
+    syncHide()
     if (!page) {
       status.replaceChildren()
       return
@@ -155,14 +167,7 @@ export function createPicker(label, name, { hideOption = true, legend = false } 
     el('div', { class: 'row tiers' }, el('span', { class: 'muted small' }, 'Random:'), ...tierButtons),
     legend ? el('p', { class: 'muted small' }, TIER_LEGEND) : null,
     status,
-    hideOption
-      ? el(
-          'div',
-          { class: 'stack-small' },
-          el('label', { class: 'check' }, hide, ' Keep secret until each player starts'),
-          el('span', { class: 'muted small' }, 'Use with Random; a typed title is known to you.'),
-        )
-      : null,
+    hideWrap,
   )
 
   return {
