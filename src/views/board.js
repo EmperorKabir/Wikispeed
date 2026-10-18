@@ -74,11 +74,12 @@ export function createBoard(session, uid) {
         else expanded.add(row.uid)
         render()
       }, { class: 'text small', 'aria-expanded': String(open) })
+      const label = players.find((p) => p.id === row.uid)?.name || row.name
       const tr = el(
         'tr',
         { class: row.uid === uid ? 'me' : null },
         el('td', {}, row.best.done ? String(i + 1) : ''),
-        el('td', {}, row.name),
+        el('td', {}, label),
         el('td', { class: 'num' }, row.best.done ? metric(row.best) : attemptStatus(row.best)),
         el('td', { class: 'num' }, String(row.attempts.length)),
         el('td', { class: 'num' }, toggle),

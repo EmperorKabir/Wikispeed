@@ -3,7 +3,7 @@ import { createSession } from '../db.js'
 import { go } from '../router.js'
 import { SCORING } from '../score.js'
 import { back, button, el, notice, view } from '../ui.js'
-import { articleUrl, randomArticle, resolveTitle, suggestTitles } from '../wiki.js'
+import { DIFFICULTIES, articleUrl, randomArticle, resolveTitle, suggestTitles } from '../wiki.js'
 
 export function setupView({ mode }) {
   if (mode !== 'solo' && mode !== 'multi') {
@@ -23,20 +23,35 @@ export function setupView({ mode }) {
     ),
   )
 
-  const start = picker('Start article', 'start')
-  const finish = picker('Finish article', 'finish')
-
-  const createButton = button('Create', onCreate, { class: 'primary' })
-  const quickButton = button("Single Click: Fully random, let's go!", onQuick, { class: 'primary' })
+  const difficultyChoices = Object.entries(DIFFICULTIES).map(([key, { label, hint }]) =>
+    el(
+      'label',
+      { class: 'choice compact' },
+      el('input', { type: 'radio', name: 'difficulty', value: key, checked: key === 'medium' }),
+      el('strong', {}, label),
+      el('small', {}, hint),
+    ),
+  )
 
   function scoring() {
     return root.querySelector('input[name="scoring"]:checked').value
   }
 
+  function difficulty() {
+    return root.querySelector('input[name="difficulty"]:checked').value
+  }
+
+  const start = picker('Start article', 'start', difficulty)
+  const finish = picker('Finish article', 'finish', difficulty)
+
+  const createButton = button('Create', onCreate, { class: 'primary' })
+  const quickButton = button("Single Click: Fully random, let's go!", onQuick, { class: 'primary' })
+
   async function twoRandomArticles() {
-    const first = await randomArticle()
-    let second = await randomArticle()
-    for (let i = 0; i < 3 && second.key === first.key; i++) second = await randomArticle()
+    const level = difficulty()
+    const first = await randomArticle(level)
+    let second = await randomArticle(level)
+    for (let i = 0; i < 3 && second.key === first.key; i++) second = await randomArticle(level)
     return [first, second]
   }
 
@@ -50,6 +65,7 @@ export function setupView({ mode }) {
         uid: currentUser().uid,
         mode,
         scoring: scoring(),
+        difficulty: difficulty(),
         start: { key: from.key, title: from.title },
         target: { key: to.key, title: to.title },
         hideStart: start.hidden(),
@@ -84,6 +100,7 @@ export function setupView({ mode }) {
         uid: currentUser().uid,
         mode,
         scoring: scoring(),
+        difficulty: difficulty(),
         start: { key: from.key, title: from.title },
         target: { key: to.key, title: to.title },
         hideStart: start.hidden(),
@@ -102,6 +119,7 @@ export function setupView({ mode }) {
     back(mode === 'solo' ? 'Home' : 'Multiplayer', mode === 'solo' ? '/' : '/multi'),
     el('h1', {}, mode === 'solo' ? 'New solo game' : 'New multiplayer game'),
     el('fieldset', {}, el('legend', {}, 'Scoring'), el('div', { class: 'choices' }, scoringChoices)),
+    el('fieldset', {}, el('legend', {}, 'Random article difficulty'), el('div', { class: 'choices four' }, difficultyChoices)),
     start.el,
     finish.el,
     error,
@@ -113,7 +131,7 @@ export function setupView({ mode }) {
   return view(root)
 }
 
-function picker(label, name) {
+function picker(label, name, difficulty) {
   let page = null
   let debounce = null
   let seq = 0
@@ -216,7 +234,7 @@ function picker(label, name) {
     randomButton.disabled = true
     status.textContent = 'Picking'
     try {
-      const found = await randomArticle()
+      const found = await randomArticle(difficulty())
       if (mine !== seq) return
       page = found
       refresh()

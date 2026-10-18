@@ -1,5 +1,29 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { isArticleKey, keyFromHref, keyFromUrl, resolveTitle, sanitiseArticle, titleFromKey } from '../src/wiki.js'
+import {
+  DIFFICULTIES,
+  articleFromTalk,
+  isArticleKey,
+  keyFromHref,
+  keyFromUrl,
+  resolveTitle,
+  sanitiseArticle,
+  titleFromKey,
+  vitalCategory,
+} from '../src/wiki.js'
+
+describe('difficulty tiers', () => {
+  it('maps tiers to vital-article levels', () => {
+    expect(DIFFICULTIES.easy.level).toBe(3)
+    expect(DIFFICULTIES.medium.level).toBe(4)
+    expect(DIFFICULTIES.hard.level).toBe(5)
+    expect(DIFFICULTIES.any.level).toBe(0)
+  })
+  it('builds the category name and strips the talk prefix', () => {
+    expect(vitalCategory(4, 'People')).toBe('Category:Wikipedia level-4 vital articles in People')
+    expect(articleFromTalk('Talk:Franz Kafka')).toBe('Franz Kafka')
+    expect(articleFromTalk('Franz Kafka')).toBe('Franz Kafka')
+  })
+})
 
 function fakeWikipedia(pages, search = []) {
   return vi.fn(async (url) => {

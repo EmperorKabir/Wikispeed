@@ -166,6 +166,7 @@ export async function playView({ code }) {
       {
         mode: session.mode,
         scoring: session.scoring,
+        difficulty: session.difficulty ?? 'any',
         start: route.start.title,
         target: route.target.title,
         clicks: best.clicks,

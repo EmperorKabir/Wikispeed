@@ -36,7 +36,7 @@ function normaliseRun(snap) {
   return { id: snap.id, uid: data.uid ?? snap.id, attempt: data.attempt ?? 1, ...data }
 }
 
-export async function createSession({ uid, mode, scoring, start, target, hideStart, hideTarget }) {
+export async function createSession({ uid, mode, scoring, difficulty, start, target, hideStart, hideTarget }) {
   const solo = mode === 'solo'
   for (let attempt = 0; attempt < 5; attempt++) {
     const code = makeCode()
@@ -46,6 +46,7 @@ export async function createSession({ uid, mode, scoring, start, target, hideSta
       tx.set(sessionRef(code), {
         mode,
         scoring,
+        difficulty,
         host: uid,
         hideStart,
         hideTarget,

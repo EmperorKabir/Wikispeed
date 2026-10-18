@@ -4,6 +4,7 @@ import { joinSession, openSession, readRoute, watchPlayers, watchRuns, watchSess
 import { go } from '../router.js'
 import { SCORING, attemptStatus, formatMs } from '../score.js'
 import { back, button, copyText, el, mask, notice, view } from '../ui.js'
+import { DIFFICULTIES } from '../wiki.js'
 import { createBoard } from './board.js'
 
 function notFound() {
@@ -106,8 +107,9 @@ export function sessionView({ code: raw }) {
     const scoring = SCORING[session.scoring] ?? SCORING.time
     const kind = session.mode === 'solo' ? 'Solo' : 'Multiplayer'
 
+    const level = DIFFICULTIES[session.difficulty]?.label
     header.replaceChildren(
-      el('h1', {}, `${kind} · ${scoring.label}`),
+      el('h1', {}, `${kind} · ${scoring.label}${level ? ` · ${level}` : ''}`),
       el(
         'p',
         { class: 'route' },
@@ -141,6 +143,31 @@ export function sessionView({ code: raw }) {
     const latest = attempts[attempts.length - 1]
 
     if (session.status === 'lobby') {
+      if (!displayName()) {
+        const nameInput = el('input', {
+          type: 'text',
+          name: 'nickname',
+          maxlength: '32',
+          placeholder: 'Your name',
+          'aria-label': 'Your name',
+          autocomplete: 'nickname',
+        })
+        const saveButton = button('Join as this name', async () => {
+          saveButton.disabled = true
+          try {
+            await setName(nameInput.value)
+          } catch {
+            saveButton.disabled = false
+            return
+          }
+          join()
+          renderAction()
+        }, { class: 'secondary', disabled: true })
+        nameInput.addEventListener('input', () => {
+          saveButton.disabled = nameInput.value.trim().length === 0
+        })
+        action.append(el('div', { class: 'row' }, nameInput, saveButton))
+      }
       if (session.host === uid) {
         const start = button('Start session', async () => {
           start.disabled = true

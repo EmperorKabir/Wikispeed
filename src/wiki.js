@@ -148,7 +148,61 @@ export async function resolveTitle(text) {
   return exact
 }
 
-export async function randomArticle(tries = 6) {
+const API = `${ORIGIN}/w/api.php`
+
+export const DIFFICULTIES = {
+  easy: { level: 3, label: 'Easy', hint: 'Well-known topics' },
+  medium: { level: 4, label: 'Medium', hint: 'Broad range' },
+  hard: { level: 5, label: 'Hard', hint: 'Specialist topics' },
+  any: { level: 0, label: 'Anything', hint: 'Any article at all' },
+}
+
+const VITAL_TOPICS = [
+  'Arts',
+  'Biology and health sciences',
+  'Everyday life',
+  'Geography',
+  'History',
+  'Mathematics',
+  'People',
+  'Philosophy and religion',
+  'Physical sciences',
+  'Society and social sciences',
+  'Technology',
+]
+
+const LETTERS = 'ABCDEFGHIJKLMNOPRSTUVW'
+
+export function vitalCategory(level, topic) {
+  return `Category:Wikipedia level-${level} vital articles in ${topic}`
+}
+
+export function articleFromTalk(title) {
+  return String(title).replace(/^Talk:/, '')
+}
+
+function pickRandom(list) {
+  return list[Math.floor(Math.random() * list.length)]
+}
+
+async function randomVital(level, tries) {
+  for (let i = 0; i < tries; i++) {
+    const category = vitalCategory(level, pickRandom(VITAL_TOPICS))
+    const url =
+      `${API}?action=query&list=categorymembers&cmtitle=${encodeURIComponent(category)}` +
+      `&cmnamespace=1&cmlimit=50&cmstartsortkeyprefix=${pickRandom(LETTERS)}&format=json&origin=*`
+    const data = await getJson(url)
+    const members = data?.query?.categorymembers ?? []
+    if (members.length === 0) continue
+    const page = await lookup(keyFromTitle(articleFromTalk(pickRandom(members).title)))
+    if (page && page.type === 'standard') return page
+  }
+  throw new Error('Could not find a random article')
+}
+
+export async function randomArticle(difficulty = 'any', tries = 6) {
+  const level = DIFFICULTIES[difficulty]?.level ?? 0
+  if (level) return randomVital(level, tries)
   for (let i = 0; i < tries; i++) {
     const page = pageFromSummary(await getJson(`${REST}/page/random/summary`))
     if (page && page.type === 'standard') return page

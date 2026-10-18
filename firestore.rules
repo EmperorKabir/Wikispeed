@@ -18,9 +18,10 @@ service cloud.firestore {
     }
 
     function validSession(d) {
-      return d.keys().hasOnly(['mode', 'scoring', 'host', 'hideStart', 'hideTarget', 'start', 'target', 'status', 'createdAt', 'startedAt'])
+      return d.keys().hasOnly(['mode', 'scoring', 'difficulty', 'host', 'hideStart', 'hideTarget', 'start', 'target', 'status', 'createdAt', 'startedAt'])
         && d.mode in ['solo', 'multi']
         && d.scoring in ['time', 'clicks']
+        && d.difficulty in ['easy', 'medium', 'hard', 'any']
         && d.host == request.auth.uid
         && d.hideStart is bool && d.hideTarget is bool
         && (d.hideStart ? d.start == null : validPage(d.start))
@@ -50,7 +51,8 @@ service cloud.firestore {
     }
 
     function validHistory(d) {
-      return d.keys().hasOnly(['mode', 'scoring', 'start', 'target', 'clicks', 'ms', 'done', 'attempts', 'at'])
+      return d.keys().hasOnly(['mode', 'scoring', 'difficulty', 'start', 'target', 'clicks', 'ms', 'done', 'attempts', 'at'])
+        && d.difficulty in ['easy', 'medium', 'hard', 'any']
         && d.attempts is int && d.attempts >= 1
         && d.mode in ['solo', 'multi']
         && d.scoring in ['time', 'clicks']
