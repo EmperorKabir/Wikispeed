@@ -151,11 +151,13 @@ export async function resolveTitle(text) {
 const API = `${ORIGIN}/w/api.php`
 
 export const DIFFICULTIES = {
-  easy: { level: 3, label: 'Easy', hint: 'Well-known topics' },
-  medium: { level: 4, label: 'Medium', hint: 'Broad range' },
-  hard: { level: 5, label: 'Hard', hint: 'Specialist topics' },
-  any: { level: 0, label: 'Anything', hint: 'Any article at all' },
+  easy: { level: 3, label: 'Easy', hint: "Wikipedia's 1,000 most important topics" },
+  medium: { level: 4, label: 'Medium', hint: 'The next 9,000 notable topics' },
+  hard: { level: 5, label: 'Hard', hint: 'The next 40,000: real but specialist' },
+  any: { level: 0, label: 'Anything', hint: 'Any of 7 million articles, usually obscure' },
 }
+
+export const TIER_LEGEND = 'Tiers do not overlap: Easy is the top 1,000 topics, Medium the next 9,000, Hard the next 40,000, Anything the whole encyclopaedia.'
 
 export function describeDifficulty(value) {
   const name = (tier) => DIFFICULTIES[tier]?.label ?? 'Chosen'
@@ -193,9 +195,17 @@ function pickRandom(list) {
   return list[Math.floor(Math.random() * list.length)]
 }
 
+function easyLevel() {
+  const r = Math.random()
+  if (r < 0.01) return 1
+  if (r < 0.1) return 2
+  return 3
+}
+
 async function randomVital(level, tries) {
   for (let i = 0; i < tries; i++) {
-    const category = vitalCategory(level, pickRandom(VITAL_TOPICS))
+    const pool = level === 3 ? easyLevel() : level
+    const category = vitalCategory(pool, pickRandom(VITAL_TOPICS))
     const url =
       `${API}?action=query&list=categorymembers&cmtitle=${encodeURIComponent(category)}` +
       `&cmnamespace=1&cmlimit=50&cmstartsortkeyprefix=${pickRandom(LETTERS)}&format=json&origin=*`

@@ -28,7 +28,7 @@ export function setupView({ mode }) {
     return root.querySelector('input[name="scoring"]:checked').value
   }
 
-  const start = createPicker('Start article', 'start')
+  const start = createPicker('Start article', 'start', { legend: true })
   const finish = createPicker('Finish article', 'finish')
 
   const createButton = button('Create', onCreate, { class: 'primary' })

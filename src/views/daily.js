@@ -1,5 +1,5 @@
 import { currentUser, displayName, setName } from '../auth.js'
-import { DAILY_SLUGS, ensureDaily, getDaily, listDaily, playPath, readRoute, todayKey, watchRuns } from '../db.js'
+import { ensureDaily, getDaily, listDaily, playPath, readRoute, todayKey, watchRuns } from '../db.js'
 import { go } from '../router.js'
 import { SCORING, attemptStatus, formatMs } from '../score.js'
 import { back, button, el, link, notice, view } from '../ui.js'
@@ -66,8 +66,8 @@ export async function dailyIndexView({ date } = {}) {
   const existing = await listDaily(day).catch(() => [])
   const have = new Set(existing.map((c) => c.slug))
 
-  function card(slug) {
-    const { tier, label } = slugParts(slug)
+  function cell(slug) {
+    const { tier } = slugParts(slug)
     const play = button('Play', async () => {
       play.disabled = true
       try {
@@ -80,13 +80,23 @@ export async function dailyIndexView({ date } = {}) {
       }
     }, { class: 'primary small-button', disabled: !isToday || !displayName() })
     return el(
-      'section',
-      { class: 'card stack-small' },
-      el('strong', {}, label),
-      el('span', { class: 'muted small' }, DIFFICULTIES[tier]?.hint ?? ''),
-      el('div', { class: 'row' }, play, link('Leaderboard', `/daily/${day}/${slug}`, { class: 'button secondary small-button' })),
-      have.has(slug) ? null : el('span', { class: 'muted small' }, isToday ? 'Not started by anyone yet' : 'Nobody played this one'),
+      'div',
+      { class: 'card stack-small daily-cell' },
+      el('div', { class: 'row' }, play, link('Board', `/daily/${day}/${slug}`, { class: 'button secondary small-button' })),
+      el('span', { class: 'muted small' }, have.has(slug) ? 'In play' : isToday ? 'Not started by anyone yet' : 'Nobody played this one'),
     )
+  }
+
+  function grid() {
+    const cells = [el('div', {}, ''), el('div', { class: 'daily-head' }, 'Timed'), el('div', { class: 'daily-head' }, 'Fewest clicks')]
+    for (const tier of Object.keys(DIFFICULTIES)) {
+      cells.push(
+        el('div', { class: 'daily-row' }, el('strong', {}, DIFFICULTIES[tier].label), el('span', { class: 'muted small' }, DIFFICULTIES[tier].hint)),
+        cell(`${tier}-time`),
+        cell(`${tier}-clicks`),
+      )
+    }
+    return el('div', { class: 'daily-grid' }, cells)
   }
 
   const gate = displayName() ? null : nameGate(() => go(`/daily/${day}`))
@@ -99,7 +109,7 @@ export async function dailyIndexView({ date } = {}) {
     isToday ? reset.el : el('p', { class: 'muted small' }, link('Back to today', '/daily')),
     gate,
     error,
-    el('div', { class: 'choices' }, DAILY_SLUGS.map(card)),
+    grid(),
     isToday ? el('p', { class: 'muted small' }, link("Yesterday's challenges", `/daily/${todayKey(new Date(Date.now() - 86400000))}`)) : null,
   )
   return view(root, () => reset.stop())

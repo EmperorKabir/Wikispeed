@@ -373,10 +373,10 @@ export function roomView(code, initial) {
     if (chooserPanel && chooserPanel.n === round.n && chooserPanel.key === parts.join()) return chooserPanel.el
     const pickers = {}
     const wrap = el('div', { class: 'stack' })
-    for (const part of parts) {
-      pickers[part] = createPicker(part === 'start' ? 'Start article' : 'Finish article', `${part}-${round.n}`)
+    parts.forEach((part, i) => {
+      pickers[part] = createPicker(part === 'start' ? 'Start article' : 'Finish article', `${part}-${round.n}`, { legend: i === 0 })
       wrap.append(pickers[part].el)
-    }
+    })
     let scoringChoice = null
     if (room.chooserPicks === 'both' && uid === round.chooser) {
       scoringChoice = el(

@@ -1,7 +1,7 @@
 import { button, el } from '../ui.js'
-import { DIFFICULTIES, articleUrl, randomArticle, resolveTitle, suggestTitles } from '../wiki.js'
+import { DIFFICULTIES, TIER_LEGEND, articleUrl, randomArticle, resolveTitle, suggestTitles } from '../wiki.js'
 
-export function createPicker(label, name, { hideOption = true } = {}) {
+export function createPicker(label, name, { hideOption = true, legend = false } = {}) {
   let page = null
   let tier = 'typed'
   let debounce = null
@@ -153,6 +153,7 @@ export function createPicker(label, name, { hideOption = true } = {}) {
     input,
     suggestions,
     el('div', { class: 'row tiers' }, el('span', { class: 'muted small' }, 'Random:'), ...tierButtons),
+    legend ? el('p', { class: 'muted small' }, TIER_LEGEND) : null,
     status,
     hideOption
       ? el(
