@@ -27,6 +27,41 @@ export function setupView({ mode }) {
   const finish = picker('Finish article', 'finish')
 
   const createButton = button('Create', onCreate, { class: 'primary' })
+  const quickButton = button("Single Click: Fully random, let's go!", onQuick, { class: 'secondary' })
+
+  function scoring() {
+    return root.querySelector('input[name="scoring"]:checked').value
+  }
+
+  async function twoRandomArticles() {
+    const first = await randomArticle()
+    let second = await randomArticle()
+    for (let i = 0; i < 3 && second.key === first.key; i++) second = await randomArticle()
+    return [first, second]
+  }
+
+  async function onQuick() {
+    error.replaceChildren()
+    quickButton.disabled = true
+    createButton.disabled = true
+    try {
+      const [from, to] = await twoRandomArticles()
+      const code = await createSession({
+        uid: currentUser().uid,
+        mode,
+        scoring: scoring(),
+        start: { key: from.key, title: from.title },
+        target: { key: to.key, title: to.title },
+        hideStart: start.hidden(),
+        hideTarget: finish.hidden(),
+      })
+      go(mode === 'solo' ? `/play/${code}` : `/s/${code}`)
+    } catch (err) {
+      error.replaceChildren(notice(`Could not start a random game: ${err.message}`, 'error'))
+      quickButton.disabled = false
+      createButton.disabled = false
+    }
+  }
 
   async function onCreate() {
     error.replaceChildren()
@@ -48,7 +83,7 @@ export function setupView({ mode }) {
       const code = await createSession({
         uid: currentUser().uid,
         mode,
-        scoring: root.querySelector('input[name="scoring"]:checked').value,
+        scoring: scoring(),
         start: { key: from.key, title: from.title },
         target: { key: to.key, title: to.title },
         hideStart: start.hidden(),
@@ -71,6 +106,7 @@ export function setupView({ mode }) {
     finish.el,
     error,
     createButton,
+    quickButton,
   )
 
   return view(root)
