@@ -94,6 +94,7 @@ export async function playView(params) {
   let finished = false
   let currentKey = route.start.key
   let tick = null
+  let heartbeat = null
   let stopBoard = () => {}
 
   const metricOut = el('span', { class: 'stat' }, timed ? '0:00.0' : '0')
@@ -193,6 +194,9 @@ export async function playView(params) {
       metricOut.textContent = formatMs(timer.elapsed())
     }, 100)
   }
+  heartbeat = setInterval(() => {
+    if (!finished) progressRun(arena, run.id, { clicks, path, currentKey, loadMs: Math.round(loadMs) }).catch(() => {})
+  }, 60000)
 
   load(route.start.key)
 
@@ -286,6 +290,7 @@ export async function playView(params) {
     giveUpButton.hidden = true
     timer.pause()
     clearInterval(tick)
+    clearInterval(heartbeat)
     metricOut.textContent = timed ? formatMs(Math.round(timer.elapsed())) : String(clicks)
     status.replaceChildren(el('p', { class: 'muted', role: 'status' }, 'Saving'))
     try {
@@ -323,6 +328,7 @@ export async function playView(params) {
     finished = true
     timer.pause()
     clearInterval(tick)
+    clearInterval(heartbeat)
     status.replaceChildren(el('p', { class: 'muted', role: 'status' }, 'Saving'))
     try {
       await record(false)
@@ -333,9 +339,13 @@ export async function playView(params) {
   }
 
   return view(root, () => {
+    const abandoned = !finished
     finished = true
+    timer.pause()
     clearInterval(tick)
+    clearInterval(heartbeat)
     stopBoard()
     unloadStyles()
+    if (abandoned) record(false).catch(() => {})
   })
 }

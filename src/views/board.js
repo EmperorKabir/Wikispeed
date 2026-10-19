@@ -2,7 +2,7 @@ import { SCORING, attemptStatus, formatMs, playerRows } from '../score.js'
 import { button, el } from '../ui.js'
 import { articleUrl, titleFromKey } from '../wiki.js'
 
-const STALE_MS = 10 * 60 * 1000
+const STALE_MS = 150 * 1000
 
 function millis(value) {
   if (!value) return 0
@@ -113,11 +113,11 @@ export function createBoard(session, uid, { title = 'Leaderboard', firstOnly = f
     const showRoutes = routesVisible()
     const trs = rows.flatMap((row, i) => {
       const open = expanded.has(row.uid)
-      const toggle = button(open ? 'Hide' : 'Attempts', () => {
+      const toggle = button(open ? 'Hide attempts' : 'Show attempts', () => {
         if (open) expanded.delete(row.uid)
         else expanded.add(row.uid)
         render()
-      }, { class: 'text small', 'aria-expanded': String(open) })
+      }, { class: 'secondary small-button', 'aria-expanded': String(open) })
       const label = players.find((p) => p.id === row.uid)?.name || row.name
       const latest = row.attempts[row.attempts.length - 1]
       const cell = row.best.done
